@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "microservices",
+  "version": "${version}",
+
+  "name": "Fabric mod allowing integration of Wasm into Minecraft.",
+  "description": "This is an example description! Tell everyone what your mod is about!",
+  "authors": [
+    "Nic Jackson"
+  ],
+  "contact": {
+    "homepage": "https://github.com/hashicraft",
+    "sources": "https://github.com/hashicraft/fabric-microservices-mod"
+  },
+
+  "license": "CC0-1.0",
+  "icon": "assets/modid/icon.png",
+
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.github.hashicraft.microservices.MicroservicesMod"
+    ],
+    "client": [
+      "com.github.hashicraft.microservices.MicroservicesModClient"
+    ]
+  },
+  "mixins": [
+    "modid.mixins.json"
+  ],
+
+  "depends": {
+    "fabricloader": ">=0.14.22",
+    "fabric": "*",
+    "minecraft": "1.20.0",
+    "java": ">=17"
+  }
+}
