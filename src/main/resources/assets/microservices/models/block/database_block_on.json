@@ -3,8 +3,8 @@
 	"parent": "block/block",
 	"texture_size": [64, 64],
 	"textures": {
-		"0": "wasmcraft:block/wasm_block",
-		"particle": "wasmcraft:block/wasm_block"
+		"0": "microservices:block/database_block",
+		"particle": "microservices:block/database_block"
 	},
 	"elements": [
 		{
@@ -24,7 +24,7 @@
 			"from": [1, 1, 0],
 			"to": [15, 15, 0],
 			"faces": {
-				"north": {"uv": [3.5, 8, 7, 11.5], "texture": "#0"},
+				"north": {"uv": [0, 8, 3.5, 11.5], "texture": "#0"},
 				"east": {"uv": [0, 0, 0, 3.5], "texture": "#0"},
 				"south": {"uv": [3.25, 11, 3.5, 11.25], "texture": "#0"},
 				"west": {"uv": [0, 0, 0, 3.5], "texture": "#0"},

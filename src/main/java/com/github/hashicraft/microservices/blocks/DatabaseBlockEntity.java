@@ -1,8 +1,6 @@
-package com.github.nicholasjackson.wasmcraft.blocks;
+package com.github.hashicraft.microservices.blocks;
 
-import java.util.ArrayList;
-
-import com.github.nicholasjackson.wasmcraft.WasmcraftMod;
+import com.github.hashicraft.microservices.MicroservicesMod;
 import com.github.hashicraft.stateful.blocks.StatefulBlockEntity;
 import com.github.hashicraft.stateful.blocks.Syncable;
 
@@ -15,16 +13,6 @@ import net.minecraft.util.math.BlockPos;
 public class DatabaseBlockEntity extends StatefulBlockEntity {
 
   @Syncable
-  public ArrayList<String> modules = new ArrayList<String>();
-  public ArrayList<String> names = new ArrayList<String>();
-
-  @Syncable
-  public String function;
-
-  @Syncable
-  public ArrayList<String> parameters;
-
-  @Syncable
   public String result;
 
   @Syncable
@@ -34,11 +22,10 @@ public class DatabaseBlockEntity extends StatefulBlockEntity {
   public boolean powered = false;
 
   public DatabaseBlockEntity(BlockPos pos, BlockState state) {
-    super(MicroserviesMod.DATABASE_BLOCK_ENTITY, pos, state, null);
+    super(MicroservicesMod.DATABASE_BLOCK_ENTITY, pos, state, null);
   }
 
   public DatabaseBlockEntity(BlockPos pos, BlockState state, Block parent) {
-    super(WasmcraftMod.WASM_BLOCK_ENTITY, pos, state, parent);
+    super(MicroservicesMod.DATABASE_BLOCK_ENTITY, pos, state, parent);
   }
-
 }

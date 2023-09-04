@@ -1,6 +1,6 @@
-package com.github.nicholasjackson.wasmcraft.events;
+package com.github.hashicraft.microservices.events;
 
-import com.github.nicholasjackson.wasmcraft.blocks.WasmBlockEntity;
+import com.github.hashicraft.microservices.blocks.DatabaseBlockEntity;
 
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
@@ -21,5 +21,5 @@ public interface DatabaseBlockClicked {
         return ActionResult.PASS;
       });
 
-  ActionResult interact(WasmBlockEntity block, DatabaseGuiCallback callback);
+  ActionResult interact(DatabaseBlockEntity block, DatabaseGuiCallback callback);
 }

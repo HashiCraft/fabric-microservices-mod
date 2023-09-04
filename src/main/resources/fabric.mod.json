@@ -3,7 +3,7 @@
   "id": "microservices",
   "version": "${version}",
 
-  "name": "Fabric mod allowing integration of Wasm into Minecraft.",
+  "name": "Fabric mod allowing you to build microservices with minecraft",
   "description": "This is an example description! Tell everyone what your mod is about!",
   "authors": [
     "Nic Jackson"
@@ -26,13 +26,13 @@
     ]
   },
   "mixins": [
-    "modid.mixins.json"
+    "microservices.mixins.json"
   ],
 
   "depends": {
     "fabricloader": ">=0.14.22",
     "fabric": "*",
-    "minecraft": "1.20.0",
+    "minecraft": ">=1.20.0",
     "java": ">=17"
   }
 }

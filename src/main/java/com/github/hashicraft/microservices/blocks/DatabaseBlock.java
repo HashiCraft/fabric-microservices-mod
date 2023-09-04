@@ -1,7 +1,6 @@
 package com.github.hashicraft.microservices.blocks;
 
-import java.util.ArrayList;
-
+import com.github.hashicraft.microservices.events.DatabaseBlockClicked;
 import com.github.hashicraft.stateful.blocks.StatefulBlock;
 
 import net.minecraft.block.Block;
@@ -39,11 +38,7 @@ public class DatabaseBlock extends StatefulBlock {
     DatabaseBlockEntity blockEntity = (DatabaseBlockEntity) world.getBlockEntity(pos);
 
     if (world.isClient()) {
-      // world.updateNeighborsAlways(pos, state.getBlock());
-
       DatabaseBlockClicked.EVENT.invoker().interact(blockEntity, () -> {
-        executeWasmFunction(state, world, pos, player, blockEntity);
-
         // ensure that the state is synced with the server
         blockEntity.markForUpdate();
       });

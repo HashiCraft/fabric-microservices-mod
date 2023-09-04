@@ -3,8 +3,8 @@
   "parent": "block/block",
   "texture_size": [64, 64],
   "textures": {
-      "0": "wasmcraft:block/wasm_block",
-      "particle": "wasmcraft:block/wasm_block"
+      "0": "microservices:block/database_block",
+      "particle": "microservices:block/database_block"
   },
   "elements": [
       {
