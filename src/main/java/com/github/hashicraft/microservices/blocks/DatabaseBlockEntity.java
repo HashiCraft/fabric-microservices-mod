@@ -16,10 +16,77 @@ public class DatabaseBlockEntity extends StatefulBlockEntity {
   public String result;
 
   @Syncable
+  public String dbAddress;
+
+  @Syncable
+  public String dbUsername;
+
+  @Syncable
+  public String dbPassword;
+
+  @Syncable
+  public String dbDatabase;
+
+  @Syncable
+  public String sqlStatement;
+
+  @Syncable
   public Integer redstonePower = 0;
+
+  // tracks the number of ticks a block has been
+  // powered for
+  public int onCount = 0;
 
   @Syncable(property = "powered", type = BooleanProperty.class)
   public boolean powered = false;
+
+  public String getResult() {
+    return result;
+  }
+
+  public void setResult(String result) {
+    this.result = result;
+  }
+
+  public String getDbAddress() {
+    return dbAddress;
+  }
+
+  public void setDbAddress(String address) {
+    this.dbAddress = address;
+  }
+
+  public String getUsername() {
+    return this.dbUsername;
+  }
+
+  public void setUsername(String name) {
+    this.dbUsername = name;
+  }
+
+  public String getPassword() {
+    return this.dbPassword;
+  }
+
+  public void setPassword(String password) {
+    this.dbPassword = password;
+  }
+
+  public String getDatabase() {
+    return this.dbDatabase;
+  }
+
+  public void setDatabase(String database) {
+    this.dbDatabase = database;
+  }
+
+  public String getSQLStatement() {
+    return this.sqlStatement;
+  }
+
+  public void setSQLStatement(String sql) {
+    this.sqlStatement = sql;
+  }
 
   public DatabaseBlockEntity(BlockPos pos, BlockState state) {
     super(MicroservicesMod.DATABASE_BLOCK_ENTITY, pos, state, null);

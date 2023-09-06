@@ -34,6 +34,8 @@ dependencies {
   modImplementation include("io.github.cottonmc:LibGui:${project.libgui_version}")
 	modImplementation include("com.github.hashicraft:fabric-stateful-mod:${stateful_version}")
 
+  implementation("org.postgresql:postgresql:42.6.0");
+
   testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.2")
   testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.2")
 }
