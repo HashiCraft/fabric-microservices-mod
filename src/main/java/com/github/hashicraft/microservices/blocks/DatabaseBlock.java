@@ -8,14 +8,18 @@ import java.sql.Statement;
 
 import com.github.hashicraft.microservices.MicroservicesMod;
 import com.github.hashicraft.microservices.events.DatabaseBlockClicked;
+import com.github.hashicraft.microservices.events.Messages;
 import com.github.hashicraft.stateful.blocks.StatefulBlock;
 
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
@@ -29,6 +33,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldAccess;
 
 public class DatabaseBlock extends StatefulBlock {
   public static final DirectionProperty FACING = Properties.HORIZONTAL_FACING;
@@ -47,8 +52,6 @@ public class DatabaseBlock extends StatefulBlock {
 
     if (world.isClient()) {
       DatabaseBlockClicked.EVENT.invoker().interact(blockEntity, () -> {
-
-        // ensure that the state is synced with the server
         blockEntity.markForUpdate();
       });
     }
@@ -57,26 +60,31 @@ public class DatabaseBlock extends StatefulBlock {
   }
 
   @Override
+  public void onBroken(WorldAccess world, BlockPos pos, BlockState state) {
+    if (world.isClient()) {
+      PacketByteBuf buf = PacketByteBufs.create();
+      buf.writeBlockPos(pos);
+
+      ClientPlayNetworking.send(Messages.DATABASE_BLOCK_REMOVE, buf);
+    }
+  }
+
+  @Override
   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+    PacketByteBuf buf = PacketByteBufs.create();
+    buf.writeBlockPos(pos);
+
+    ClientPlayNetworking.send(Messages.DATABASE_BLOCK_REGISTER, buf);
     // pass a reference to self so that neighbors can be updated later
     return new DatabaseBlockEntity(pos, state, this);
   }
 
-  @Override
   public boolean emitsRedstonePower(BlockState state) {
     return true;
   }
 
-  @Override
   public int getWeakRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-    DatabaseBlockEntity blockEntity = (DatabaseBlockEntity) world.getBlockEntity(pos);
-    return blockEntity.redstonePower;
-  }
-
-  @Override
-  public int getStrongRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-    DatabaseBlockEntity blockEntity = (DatabaseBlockEntity) world.getBlockEntity(pos);
-    return blockEntity.redstonePower;
+    return state.get(POWERED) != false ? 15 : 0;
   }
 
   @Override
@@ -102,77 +110,14 @@ public class DatabaseBlock extends StatefulBlock {
   }
 
   @Override
-  public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-    DatabaseBlockEntity blockEntity = (DatabaseBlockEntity) world.getBlockEntity(pos);
-
-      MicroservicesMod.LOGGER.info("power on");
-    if (blockEntity.powered) {
-      // increase the tick count that the block has been powered for
-      blockEntity.onCount++;
-
-      // if powered for 5 ticks then turn off
-      if (blockEntity.onCount > 5) {
-        MicroservicesMod.LOGGER.info("power off");
-
-        blockEntity.powered = false;
-        blockEntity.redstonePower = 0;
-        blockEntity.markForUpdate();
-        return;
-      }
-
+  // scheduledTick is called after the sql statement has been executed
+  public void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+    MicroservicesMod.LOGGER.info("scheduledTick {}", pos);
+    if (!state.get(POWERED).booleanValue()) {
       return;
     }
 
-    // check if the block is powered
-    int power = world.getReceivedRedstonePower(pos);
-
-    if (power > 0) {
-      if (!executeSQLStatement(blockEntity)) {
-        MicroservicesMod.LOGGER.info("sql failed");
-        return;
-      }
-
-      MicroservicesMod.LOGGER.info("power on");
-
-      // set that the block is powered
-      blockEntity.onCount = 0;
-      blockEntity.redstonePower = 16;
-      blockEntity.powered = true;
-      blockEntity.markForUpdate();
-    }
+    BlockState newState = state.with(POWERED, false);
+    world.setBlockState(pos, newState, Block.NOTIFY_ALL);
   }
-
-  private Boolean executeSQLStatement(DatabaseBlockEntity blockEntity) {
-
-    // get the database details from the block entity
-    String address = blockEntity.getDbAddress();
-    String username = blockEntity.getUsername();
-    String password = blockEntity.getPassword();
-    String database = blockEntity.getDatabase();
-    String sql = blockEntity.getSQLStatement();
-
-    // execute the SQL statement
-    try {
-      Connection conn = DriverManager.getConnection(String.format("jdbc:postgresql://%s/%s", address, database),
-          username, password);
-      Statement st = conn.createStatement();
-      ResultSet rs = st.executeQuery(sql);
-      rs.close();
-      st.close();
-
-    } catch (SQLException e) {
-      // set the result on the block entity
-      blockEntity.setResult(e.getMessage());
-      blockEntity.markForUpdate();
-      return false;
-    }
-
-    return true;
-
-    // String result = Database.execute(address, username, password, database, sql);
-
-    // set the result on the block entity
-    // blockEntity.setResult(result);
-  }
-
 }

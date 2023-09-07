@@ -16,11 +16,11 @@ resource "container" "postgres" {
 
   environment = {
     POSTGRES_PASSWORD = "password"
-    POSTGRES_DB = "mydb"
+    POSTGRES_DB       = "mydb"
   }
 
   volume {
-    source = "./sql"
-    destination = "/docker-entrypoint-initdb.d"
+    source      = "./sql/setup.sql"
+    destination = "/docker-entrypoint-initdb.d/setup.sql"
   }
 }

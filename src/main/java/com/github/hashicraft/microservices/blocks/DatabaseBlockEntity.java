@@ -30,15 +30,9 @@ public class DatabaseBlockEntity extends StatefulBlockEntity {
   @Syncable
   public String sqlStatement;
 
-  @Syncable
-  public Integer redstonePower = 0;
-
   // tracks the number of ticks a block has been
   // powered for
   public int onCount = 0;
-
-  @Syncable(property = "powered", type = BooleanProperty.class)
-  public boolean powered = false;
 
   public String getResult() {
     return result;
