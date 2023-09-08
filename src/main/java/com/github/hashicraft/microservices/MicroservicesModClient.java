@@ -5,12 +5,18 @@ import com.github.hashicraft.microservices.gui.DatabaseBlockGui;
 import com.github.hashicraft.microservices.gui.DatabaseBlockScreen;
 
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.api.Environment;
+import net.fabricmc.api.EnvType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.ActionResult;
 
+@Environment(EnvType.CLIENT)
 public class MicroservicesModClient implements ClientModInitializer {
+
   @Override
   public void onInitializeClient() {
+    Client.setClient(true);
+
     // Here we will put client-only registration code
     DatabaseBlockClicked.EVENT.register((block, callback) -> {
       DatabaseBlockGui gui = new DatabaseBlockGui(block, callback);

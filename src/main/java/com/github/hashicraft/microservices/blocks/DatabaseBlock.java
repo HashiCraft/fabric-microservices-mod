@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.hashicraft.microservices.Client;
 import com.github.hashicraft.microservices.MicroservicesMod;
 import com.github.hashicraft.microservices.environment.Env;
 import com.github.hashicraft.microservices.events.DatabaseBlockClicked;
@@ -50,6 +51,8 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
 import net.minecraft.world.tick.TickPriority;
+
+import net.minecraft.client.MinecraftClient;
 
 public class DatabaseBlock extends StatefulBlock {
   private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseBlock.class);
@@ -96,11 +99,15 @@ public class DatabaseBlock extends StatefulBlock {
 
   @Override
   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-    PacketByteBuf buf = PacketByteBufs.create();
-    buf.writeBlockPos(pos);
+    LOGGER.info("createBlockEntity {} {}", pos, Client.isClient());
 
-    ClientPlayNetworking.send(Messages.DATABASE_BLOCK_REGISTER, buf);
-    // pass a reference to self so that neighbors can be updated later
+    if (Client.isClient()) {
+      PacketByteBuf buf = PacketByteBufs.create();
+      buf.writeBlockPos(pos);
+
+      ClientPlayNetworking.send(Messages.DATABASE_BLOCK_REGISTER, buf);
+    }
+
     return new DatabaseBlockEntity(pos, state, this);
   }
 
