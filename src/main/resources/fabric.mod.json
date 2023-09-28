@@ -3,8 +3,8 @@
   "id": "microservices",
   "version": "${version}",
 
-  "name": "Fabric mod allowing you to build microservices with minecraft",
-  "description": "This is an example description! Tell everyone what your mod is about!",
+  "name": "Microservices Mod",
+  "description": "Fabric mod allowing you to build microservices with minecraft, contains blocks that enable HTTP servers and database connections.",
   "authors": [
     "Nic Jackson"
   ],

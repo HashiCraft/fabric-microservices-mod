@@ -36,6 +36,7 @@ dependencies {
 	modImplementation include("com.github.hashicraft:fabric-stateful-mod:${stateful_version}")
 
   implementation include("org.postgresql:postgresql:42.6.0");
+  implementation include("io.javalin:javalin:5.6.1");
 
   testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.2")
   testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.2")

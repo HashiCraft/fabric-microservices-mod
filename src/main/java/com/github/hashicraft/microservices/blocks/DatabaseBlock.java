@@ -52,8 +52,6 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
 import net.minecraft.world.tick.TickPriority;
 
-import net.minecraft.client.MinecraftClient;
-
 public class DatabaseBlock extends StatefulBlock {
   private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseBlock.class);
 
