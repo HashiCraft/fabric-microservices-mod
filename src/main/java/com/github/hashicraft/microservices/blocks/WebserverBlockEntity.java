@@ -14,7 +14,7 @@ public class WebserverBlockEntity extends StatefulBlockEntity {
   public String result;
 
   @Syncable
-  public int serverPort;
+  public String serverPort;
 
   @Syncable
   public String serverPath;
@@ -34,18 +34,12 @@ public class WebserverBlockEntity extends StatefulBlockEntity {
     this.result = result;
   }
 
-  public int getServerPort() {
+  public String getServerPort() {
     return serverPort;
   }
 
   public void setServerPort(String port) {
-    try {
-      var p = Integer.parseInt(port);
-      this.serverPort = p;
-    } catch (NumberFormatException e) {
-      MicroservicesMod.LOGGER.error("Invalid port number: " + port);
-      return;
-    }
+    this.serverPort = port;
   }
 
   public String getServerPath() {

@@ -1,4 +1,4 @@
-package com.github.hashicraft.microservices.environment;
+package com.github.hashicraft.microservices.interpolation;
 
 import java.util.Locale;
 import java.util.Map;
@@ -14,11 +14,15 @@ public class Env {
   // their strings.
   //
   // If no environment substitution is found, the original value is returned.
-  public static String getValueSubstitution(String value) {
+  public static String getValue(String value) {
     return replaceInString(value);
   }
 
   private static String replaceInString(String in) {
+    if (in == null || in.isEmpty()) {
+      return in;
+    }
+
     Pattern pattern = Pattern.compile("(\\$\\{\\{env\\.(.+?)\\}\\})");
     Matcher matcher = pattern.matcher(in);
     Map<String, String> env = System.getenv();

@@ -14,10 +14,10 @@ import com.github.hashicraft.microservices.Client;
 import com.github.hashicraft.microservices.MicroservicesMod;
 import com.github.hashicraft.microservices.events.Messages;
 import com.github.hashicraft.microservices.events.WebserverBlockClicked;
+import com.github.hashicraft.microservices.interpolation.Interpolate;
 import com.github.hashicraft.stateful.blocks.StatefulBlock;
 
 import io.javalin.Javalin;
-import io.javalin.config.JavalinConfig;
 import io.javalin.http.Context;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -220,13 +220,24 @@ public class WebserverBlock extends StatefulBlock {
     WebserverBlockEntity blockEntity = (WebserverBlockEntity) world.getBlockEntity(pos);
     var val = SERVERS.get(pos);
 
+    String port = Interpolate.getValue(blockEntity.getServerPort());
+    int iPort = 0;
+
+    try {
+      iPort = Integer.parseInt(port);
+    } catch (NumberFormatException e) {
+      MicroservicesMod.LOGGER.error("invalid port {}", port);
+    }
+
+    String path = Interpolate.getValue(blockEntity.getServerPath());
+    String method = Interpolate.getValue(blockEntity.getServerMethod());
+
     // no server port set, do nothing
-    if (blockEntity.getServerPort() == 0 || blockEntity.getServerPath().isEmpty()
-        || blockEntity.getServerMethod().isEmpty()) {
+    if (iPort == 0 || path.isEmpty() || method.isEmpty()) {
       return;
     }
 
-    MicroservicesMod.LOGGER.info("configure server {}", pos);
+    MicroservicesMod.LOGGER.info("configure server {} port: {} path: {} method: {}", pos, port, path, method);
 
     // if we already have a server stop it and reconfigure
     if (val.server != null) {
@@ -235,29 +246,29 @@ public class WebserverBlock extends StatefulBlock {
 
     // create the server and set the port
     Javalin javalin = Javalin.create();
-    javalin.jettyServer().setServerPort(blockEntity.getServerPort());
+    javalin.jettyServer().setServerPort(iPort);
 
     // start the server async
     service.submit(() -> {
       // set the method
-      switch (blockEntity.getServerMethod()) {
+      switch (method) {
         case "GET":
-          javalin.get(blockEntity.getServerPath(), ctx -> handleRequest(ctx, world, blockEntity));
+          javalin.get(path, ctx -> handleRequest(ctx, world, blockEntity));
           break;
         case "POST":
-          javalin.post(blockEntity.getServerPath(), ctx -> handleRequest(ctx, world, blockEntity));
+          javalin.post(path, ctx -> handleRequest(ctx, world, blockEntity));
           break;
         case "PUT":
-          javalin.put(blockEntity.getServerPath(), ctx -> handleRequest(ctx, world, blockEntity));
+          javalin.put(path, ctx -> handleRequest(ctx, world, blockEntity));
           break;
         case "DELETE":
-          javalin.delete(blockEntity.getServerPath(), ctx -> handleRequest(ctx, world, blockEntity));
+          javalin.delete(path, ctx -> handleRequest(ctx, world, blockEntity));
       }
 
       // start the server if the block is powered
       int power = world.getReceivedRedstonePower(pos);
       if (power > 0) {
-        javalin.start(blockEntity.getServerPort());
+        javalin.start();
       }
     });
 
@@ -270,7 +281,6 @@ public class WebserverBlock extends StatefulBlock {
     // check if the block is powered
     for (Entry<BlockPos, WebserverContext> entry : SERVERS.entrySet()) {
       BlockPos pos = entry.getKey();
-      WebserverBlockEntity blockEntity = (WebserverBlockEntity) world.getBlockEntity(pos);
       int power = world.getReceivedRedstonePower(pos);
 
       var val = entry.getValue();

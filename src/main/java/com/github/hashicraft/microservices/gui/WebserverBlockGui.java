@@ -1,8 +1,6 @@
 package com.github.hashicraft.microservices.gui;
 
-import com.github.hashicraft.microservices.blocks.DatabaseBlockEntity;
 import com.github.hashicraft.microservices.blocks.WebserverBlockEntity;
-import com.github.hashicraft.microservices.events.DatabaseGuiCallback;
 import com.github.hashicraft.microservices.events.WebserverGuiCallback;
 
 import io.github.cottonmc.cotton.gui.client.LightweightGuiDescription;
@@ -75,16 +73,16 @@ public class WebserverBlockGui extends LightweightGuiDescription {
     WLabel labelOutput = new WLabel(Text.literal("Output"));
     root.add(labelOutput, 0, 10, 4, 1);
 
-    WText textOutput = new WText(Text.literal("Output and error messages from the database"));
+    WText textOutput = new WText(Text.literal("Output and error messages from the server"));
     root.add(textOutput, 0, 11, 20, 2);
 
     // populate the fields
-    int serverPort = entity.getServerPort();
+    String serverPort = entity.getServerPort();
     String serverMethod = entity.getServerMethod();
     String serverPath = entity.getServerPath();
     String result = entity.getResult();
 
-    if (serverPort != 0) {
+    if (serverPort != null) {
       portField.setText(String.valueOf(serverPort));
     }
 

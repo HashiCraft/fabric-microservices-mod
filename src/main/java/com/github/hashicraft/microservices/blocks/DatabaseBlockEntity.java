@@ -4,8 +4,6 @@ import com.github.hashicraft.microservices.MicroservicesMod;
 import com.github.hashicraft.stateful.blocks.StatefulBlockEntity;
 import com.github.hashicraft.stateful.blocks.Syncable;
 
-import net.minecraft.state.property.BooleanProperty;
-
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;

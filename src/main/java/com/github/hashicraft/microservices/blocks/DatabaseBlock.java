@@ -16,9 +16,9 @@ import org.slf4j.LoggerFactory;
 
 import com.github.hashicraft.microservices.Client;
 import com.github.hashicraft.microservices.MicroservicesMod;
-import com.github.hashicraft.microservices.environment.Env;
 import com.github.hashicraft.microservices.events.DatabaseBlockClicked;
 import com.github.hashicraft.microservices.events.Messages;
+import com.github.hashicraft.microservices.interpolation.Interpolate;
 import com.github.hashicraft.stateful.blocks.StatefulBlock;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -238,11 +238,11 @@ public class DatabaseBlock extends StatefulBlock {
   private static String executeSQLStatement(DatabaseBlockEntity blockEntity) throws SQLException {
     // get the database details from the block entity gui
     // we will substitute any environment variables that may be embedded in here
-    String address = Env.getValueSubstitution(blockEntity.getDbAddress());
-    String username = Env.getValueSubstitution(blockEntity.getUsername());
-    String password = Env.getValueSubstitution(blockEntity.getPassword());
-    String database = Env.getValueSubstitution(blockEntity.getDatabase());
-    String sql = Env.getValueSubstitution(blockEntity.getSQLStatement());
+    String address = Interpolate.getValue(blockEntity.getDbAddress());
+    String username = Interpolate.getValue(blockEntity.getUsername());
+    String password = Interpolate.getValue(blockEntity.getPassword());
+    String database = Interpolate.getValue(blockEntity.getDatabase());
+    String sql = Interpolate.getValue(blockEntity.getSQLStatement());
 
     // execute the SQL statement
     Connection conn = DriverManager.getConnection(String.format("jdbc:postgresql://%s/%s", address, database),
