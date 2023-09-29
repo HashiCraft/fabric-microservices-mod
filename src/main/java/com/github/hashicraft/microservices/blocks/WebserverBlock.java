@@ -247,6 +247,7 @@ public class WebserverBlock extends StatefulBlock {
     // create the server and set the port
     Javalin javalin = Javalin.create();
     javalin.jettyServer().setServerPort(iPort);
+    javalin.jettyServer().setServerHost("0.0.0.0");
 
     // start the server async
     service.submit(() -> {
