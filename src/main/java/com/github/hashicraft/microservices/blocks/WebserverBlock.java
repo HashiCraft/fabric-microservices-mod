@@ -1,6 +1,6 @@
 package com.github.hashicraft.microservices.blocks;
 
-import java.util.HashMap;
+import java.io.IOException;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -53,15 +53,16 @@ import net.minecraft.world.tick.TickPriority;
 public class WebserverBlock extends StatefulBlock {
   private static final Logger LOGGER = LoggerFactory.getLogger(WebserverBlock.class);
 
-  private static ExecutorService service = new ThreadPoolExecutor(4, 1000, 0L, TimeUnit.MILLISECONDS,
-      new LinkedBlockingQueue<Runnable>());
-
   public static final DirectionProperty FACING = Properties.HORIZONTAL_FACING;
   public static final BooleanProperty POWERED = Properties.POWERED;
 
   // keeps a map of registered database blocks so we can check for updates
   // on server tick
-  private static HashMap<BlockPos, WebserverContext> SERVERS = new HashMap<BlockPos, WebserverContext>();
+  private static WebServers SERVERS = new WebServers();
+  private static boolean initialized = false;
+
+  private static ExecutorService service = new ThreadPoolExecutor(4, 1000, 0L, TimeUnit.MILLISECONDS,
+      new LinkedBlockingQueue<Runnable>());
 
   public WebserverBlock(Settings settings) {
     super(settings);
@@ -82,11 +83,26 @@ public class WebserverBlock extends StatefulBlock {
         buf.writeBlockPos(pos);
 
         // notify that the server has been reconfigured
-        ClientPlayNetworking.send(Messages.WEBSERVER_BLOCK_UPDATED, buf);
+        // we need to wait until the block state has synced so wait here
+        service.submit(() -> {
+          try {
+            Thread.sleep(1000);
+            ClientPlayNetworking.send(Messages.WEBSERVER_BLOCK_UPDATED, buf);
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+          }
+        });
       });
     }
 
     return ActionResult.SUCCESS;
+  }
+
+  @Override
+  public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+    LOGGER.info("createBlockEntity {} {}", pos, Client.isClient());
+
+    return new WebserverBlockEntity(pos, state, this);
   }
 
   @Override
@@ -97,20 +113,6 @@ public class WebserverBlock extends StatefulBlock {
 
       ClientPlayNetworking.send(Messages.WEBSERVER_BLOCK_REMOVE, buf);
     }
-  }
-
-  @Override
-  public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-    LOGGER.info("createBlockEntity {} {}", pos, Client.isClient());
-
-    if (Client.isClient()) {
-      PacketByteBuf buf = PacketByteBufs.create();
-      buf.writeBlockPos(pos);
-
-      ClientPlayNetworking.send(Messages.WEBSERVER_BLOCK_REGISTER, buf);
-    }
-
-    return new WebserverBlockEntity(pos, state, this);
   }
 
   public boolean emitsRedstonePower(BlockState state) {
@@ -157,19 +159,6 @@ public class WebserverBlock extends StatefulBlock {
 
   // register this class to listen to server play networkiing events
   public static void registerEvents() {
-    ServerPlayNetworking.registerGlobalReceiver(Messages.WEBSERVER_BLOCK_REGISTER,
-        (MinecraftServer server, ServerPlayerEntity player, ServerPlayNetworkHandler handler, PacketByteBuf buf,
-            PacketSender responseSender) -> {
-          BlockPos pos = buf.readBlockPos();
-          handleBlockRegister(pos);
-
-          // ensure that blocks are configured on the server thread
-          // and that the server is started when configured
-          server.execute(() -> {
-            handleConfigureServer(pos, server.getOverworld());
-          });
-        });
-
     ServerPlayNetworking.registerGlobalReceiver(Messages.WEBSERVER_BLOCK_REMOVE,
         (MinecraftServer server, ServerPlayerEntity player, ServerPlayNetworkHandler handler, PacketByteBuf buf,
             PacketSender responseSender) -> {
@@ -182,66 +171,93 @@ public class WebserverBlock extends StatefulBlock {
             PacketSender responseSender) -> {
           BlockPos pos = buf.readBlockPos();
 
+          // this needs to happen on the server thread or the block entity will not exist
           server.execute(() -> {
-            handleConfigureServer(pos, server.getOverworld());
+            handleBlockUpdate(pos, server.getOverworld());
           });
         });
 
     ServerTickEvents.START_SERVER_TICK.register((MinecraftServer server) -> {
       server.execute(() -> {
-        handleServerTick(server.getOverworld());
+        if (!initialized) {
+          initialized = true;
+
+          SERVERS = WebServers.loadFromConfig();
+
+          // start all the servers
+          for (Entry<BlockPos, WebServerContext> entry : SERVERS.entrySet()) {
+            server.execute(() -> {
+              startServer(entry.getKey(), server.getOverworld(), entry.getValue());
+            });
+          }
+        }
       });
     });
-
-  }
-
-  public static void handleBlockRegister(BlockPos pos) {
-    MicroservicesMod.LOGGER.info("Received register_webserver message {}", pos);
-    if (!SERVERS.containsKey(pos)) {
-      SERVERS.put(pos, new WebserverContext(null, false));
-    }
   }
 
   public static void handleBlockRemove(BlockPos pos) {
     MicroservicesMod.LOGGER.info("Received remove_webserver message {}", pos);
-    if (SERVERS.containsKey(pos)) {
+    if (SERVERS.exists(pos)) {
       var val = SERVERS.get(pos);
 
       // when removing a block ensure the server is stopped
-      if (val.server != null) {
-        val.server.close();
+      if (val.getServer() != null) {
+        val.getServer().close();
       }
 
       SERVERS.remove(pos);
     }
   }
 
-  public static void handleConfigureServer(BlockPos pos, ServerWorld world) {
+  public static void handleBlockUpdate(BlockPos pos, ServerWorld world) {
     WebserverBlockEntity blockEntity = (WebserverBlockEntity) world.getBlockEntity(pos);
     var val = SERVERS.get(pos);
 
-    String port = Interpolate.getValue(blockEntity.getServerPort());
-    int iPort = 0;
+    // we might not have created the instance yet
+    if (val == null) {
+      val = new WebServerContext();
+    }
 
+    MicroservicesMod.LOGGER.info("configure server {} port: {} path: {} method: {}", pos, blockEntity.getServerPort(),
+        blockEntity.getServerPath(), blockEntity.getServerMethod());
+
+    // update the context
+    val.setServerPort(blockEntity.getServerPort());
+    val.setServerPath(blockEntity.getServerPath());
+    val.setServerMethod(blockEntity.getServerMethod());
+
+    startServer(pos, world, val);
+
+    // serialize the servers collection
+    try {
+      SERVERS.writeToConfig();
+    } catch (IOException e) {
+      MicroservicesMod.LOGGER.info("unable to write config {}", e.getMessage());
+    }
+  }
+
+  public static void startServer(BlockPos pos, ServerWorld world, WebServerContext wctx) {
+    // read the values from interpolation
+    String port = Interpolate.getValue(wctx.getServerPort());
+    String path = Interpolate.getValue(wctx.getServerPath());
+    String method = Interpolate.getValue(wctx.getServerMethod());
+
+    // get the port as an integer
+    int iPort = 0;
     try {
       iPort = Integer.parseInt(port);
     } catch (NumberFormatException e) {
-      MicroservicesMod.LOGGER.error("invalid port {}", port);
-    }
-
-    String path = Interpolate.getValue(blockEntity.getServerPath());
-    String method = Interpolate.getValue(blockEntity.getServerMethod());
-
-    // no server port set, do nothing
-    if (iPort == 0 || path.isEmpty() || method.isEmpty()) {
+      MicroservicesMod.LOGGER.error("invalid port, not starting {}", e);
       return;
     }
 
-    MicroservicesMod.LOGGER.info("configure server {} port: {} path: {} method: {}", pos, port, path, method);
+    if (path.isEmpty() || method.isEmpty()) {
+      MicroservicesMod.LOGGER.error("path or method is empty, not starting");
+      return;
+    }
 
-    // if we already have a server stop it and reconfigure
-    if (val.server != null) {
-      val.server.close();
+    if (wctx.getServer() != null) {
+      wctx.getServer().close();
     }
 
     // create the server and set the port
@@ -254,79 +270,38 @@ public class WebserverBlock extends StatefulBlock {
       // set the method
       switch (method) {
         case "GET":
-          javalin.get(path, ctx -> handleRequest(ctx, world, blockEntity));
+          javalin.get(path, ctx -> handleRequest(ctx, world, pos));
           break;
         case "POST":
-          javalin.post(path, ctx -> handleRequest(ctx, world, blockEntity));
+          javalin.post(path, ctx -> handleRequest(ctx, world, pos));
           break;
         case "PUT":
-          javalin.put(path, ctx -> handleRequest(ctx, world, blockEntity));
+          javalin.put(path, ctx -> handleRequest(ctx, world, pos));
           break;
         case "DELETE":
-          javalin.delete(path, ctx -> handleRequest(ctx, world, blockEntity));
-      }
-
-      // start the server if the block is powered
-      int power = world.getReceivedRedstonePower(pos);
-      if (power > 0) {
-        javalin.start();
+          javalin.delete(path, ctx -> handleRequest(ctx, world, pos));
       }
     });
 
+    // start the server
+    javalin.start();
+
     // set the server
-    val.server = javalin;
-    SERVERS.put(pos, val);
+    wctx.setServer(javalin);
+    SERVERS.add(pos, wctx);
   }
 
-  public static void handleServerTick(ServerWorld world) {
-    // check if the block is powered
-    for (Entry<BlockPos, WebserverContext> entry : SERVERS.entrySet()) {
-      BlockPos pos = entry.getKey();
-      int power = world.getReceivedRedstonePower(pos);
+  public static Context handleRequest(Context ctx, ServerWorld world, BlockPos pos) {
+    LOGGER.info("Received request {} {} {}", ctx.method(), ctx.path(), pos);
 
-      var val = entry.getValue();
-      if (power > 0 && !val.powered) {
-
-        // if there is no server do nothing
-        if (val.server == null) {
-          continue;
-        }
-
-        // start the server async
-        service.submit(() -> {
-          val.server.start();
-          MicroservicesMod.LOGGER.info("block {} power on {}, starting server", entry.getKey(), power);
-        });
-
-        val.powered = true;
-
-        SERVERS.put(pos, val);
-      }
-
-      // when power is off stop the server
-      if (power == 0 && val.powered) {
-        MicroservicesMod.LOGGER.info("block {} power off {}, stopping server", entry.getKey(), power);
-        val.powered = false;
-        val.server.stop();
-
-        SERVERS.put(pos, val);
-      }
-    }
-  }
-
-  public static Context handleRequest(Context ctx, ServerWorld world, WebserverBlockEntity blockEntity) {
-    LOGGER.info("Received request {} {}", ctx.method(), ctx.path());
-
-    BlockState state = blockEntity.getCachedState().with(DatabaseBlock.POWERED, true);
-    world.setBlockState(blockEntity.getPos(), state, Block.NOTIFY_ALL);
-
-    // update the block
-    blockEntity.setPropertiesToState();
-    blockEntity.serverStateUpdated(blockEntity.serverState);
+    BlockState state = world.getBlockState(pos);
+    state = state.with(DatabaseBlock.POWERED, true);
+    world.setBlockState(pos, state, Block.NOTIFY_ALL);
 
     // schedule a block tick to update the block so it can disable
-    world.scheduleBlockTick(blockEntity.getPos(), MicroservicesMod.WEBSERVER_BLOCK, 40, TickPriority.NORMAL);
+    world.scheduleBlockTick(pos, MicroservicesMod.WEBSERVER_BLOCK, 40, TickPriority.NORMAL);
 
+    LOGGER.info("Sending response");
     return ctx.result("Hello World");
   }
 }
