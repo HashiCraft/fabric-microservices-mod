@@ -22,27 +22,27 @@ import com.google.gson.GsonBuilder;
 
 import net.minecraft.util.math.BlockPos;
 
-public class WebServers {
+public class Webservers {
 
-  private HashMap<String, WebServerContext> SERVERS = new HashMap<String, WebServerContext>();
+  private HashMap<String, WebserverContext> SERVERS = new HashMap<String, WebserverContext>();
 
   // map iteration methods
-  public Set<Entry<BlockPos, WebServerContext>> entrySet() {
-    Set<Entry<BlockPos, WebServerContext>> entrySet = new HashSet<Entry<BlockPos, WebServerContext>>();
+  public Set<Entry<BlockPos, WebserverContext>> entrySet() {
+    Set<Entry<BlockPos, WebserverContext>> entrySet = new HashSet<Entry<BlockPos, WebserverContext>>();
 
-    for (Entry<String, WebServerContext> entry : SERVERS.entrySet()) {
+    for (Entry<String, WebserverContext> entry : SERVERS.entrySet()) {
       BlockPos pos = deseriaBlockPos(entry.getKey());
-      entrySet.add(new AbstractMap.SimpleEntry<BlockPos, WebServerContext>(pos, entry.getValue()));
+      entrySet.add(new AbstractMap.SimpleEntry<BlockPos, WebserverContext>(pos, entry.getValue()));
     }
 
     return entrySet;
   }
 
-  public void add(BlockPos pos, WebServerContext context) {
+  public void add(BlockPos pos, WebserverContext context) {
     SERVERS.put(serializeBlockPos(pos), context);
   }
 
-  public WebServerContext get(BlockPos pos) {
+  public WebserverContext get(BlockPos pos) {
     return SERVERS.get(serializeBlockPos(pos));
   }
 
@@ -55,7 +55,7 @@ public class WebServers {
   }
 
   public String toJSON() {
-    Type typeObject = new TypeToken<HashMap<String, WebServerContext>>() {
+    Type typeObject = new TypeToken<HashMap<String, WebserverContext>>() {
     }.getType();
 
     Gson gson = new GsonBuilder()
@@ -73,7 +73,7 @@ public class WebServers {
     myWriter.close();
   }
 
-  public static WebServers loadFromConfig() {
+  public static Webservers loadFromConfig() {
     Path path = Paths.get("config", "webservers.json");
     try (FileReader myReader = new FileReader(path.toString())) {
       String json = IOUtils.toString(myReader);
@@ -81,20 +81,20 @@ public class WebServers {
 
       return fromJSON(json);
     } catch (IOException e) {
-      return new WebServers();
+      return new Webservers();
     }
   }
 
-  public static WebServers fromJSON(String json) {
-    Type typeObject = new TypeToken<HashMap<String, WebServerContext>>() {
+  public static Webservers fromJSON(String json) {
+    Type typeObject = new TypeToken<HashMap<String, WebserverContext>>() {
     }.getType();
 
     Gson gson = new GsonBuilder()
         .excludeFieldsWithoutExposeAnnotation()
         .create();
 
-    HashMap<String, WebServerContext> map = gson.fromJson(json, typeObject);
-    var ws = new WebServers();
+    HashMap<String, WebserverContext> map = gson.fromJson(json, typeObject);
+    var ws = new Webservers();
     ws.SERVERS = map;
 
     return ws;

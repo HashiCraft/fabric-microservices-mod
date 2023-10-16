@@ -4,7 +4,7 @@ import com.google.gson.annotations.Expose;
 
 import io.javalin.Javalin;
 
-public class WebServerContext {
+public class WebserverContext {
   @Expose
   private String serverPort;
 
@@ -50,6 +50,6 @@ public class WebServerContext {
     this.server = server;
   }
 
-  public WebServerContext() {
+  public WebserverContext() {
   }
 }

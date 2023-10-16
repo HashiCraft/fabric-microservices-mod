@@ -7,8 +7,8 @@ import java.io.IOException;
 
 import org.junit.jupiter.api.Test;
 
-import com.github.hashicraft.microservices.blocks.WebServerContext;
-import com.github.hashicraft.microservices.blocks.WebServers;
+import com.github.hashicraft.microservices.blocks.WebserverContext;
+import com.github.hashicraft.microservices.blocks.Webservers;
 import com.github.hashicraft.microservices.interpolation.File;
 
 import net.minecraft.util.math.BlockPos;
@@ -17,9 +17,9 @@ public class WebServersTests {
 
   @Test
   public void serializesDataToJSON() throws IOException {
-    WebServers servers = new WebServers();
+    Webservers servers = new Webservers();
 
-    WebServerContext context = new WebServerContext();
+    WebserverContext context = new WebserverContext();
     context.setServerPort("8080");
     context.setServerPath("/test");
     context.setServerMethod("GET");
@@ -43,9 +43,9 @@ public class WebServersTests {
           }
         }""";
 
-    WebServers servers = WebServers.fromJSON(json);
+    Webservers servers = Webservers.fromJSON(json);
 
-    WebServerContext context = servers.get(new BlockPos(1, 2, 3));
+    WebserverContext context = servers.get(new BlockPos(1, 2, 3));
 
     assertContains(context.getServerPort(), "8080");
   }

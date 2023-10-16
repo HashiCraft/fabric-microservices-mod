@@ -58,7 +58,7 @@ public class WebserverBlock extends StatefulBlock {
 
   // keeps a map of registered database blocks so we can check for updates
   // on server tick
-  private static WebServers SERVERS = new WebServers();
+  private static Webservers SERVERS = new Webservers();
   private static boolean initialized = false;
 
   private static ExecutorService service = new ThreadPoolExecutor(4, 1000, 0L, TimeUnit.MILLISECONDS,
@@ -182,10 +182,10 @@ public class WebserverBlock extends StatefulBlock {
         if (!initialized) {
           initialized = true;
 
-          SERVERS = WebServers.loadFromConfig();
+          SERVERS = Webservers.loadFromConfig();
 
           // start all the servers
-          for (Entry<BlockPos, WebServerContext> entry : SERVERS.entrySet()) {
+          for (Entry<BlockPos, WebserverContext> entry : SERVERS.entrySet()) {
             server.execute(() -> {
               startServer(entry.getKey(), server.getOverworld(), entry.getValue());
             });
@@ -215,7 +215,7 @@ public class WebserverBlock extends StatefulBlock {
 
     // we might not have created the instance yet
     if (val == null) {
-      val = new WebServerContext();
+      val = new WebserverContext();
     }
 
     MicroservicesMod.LOGGER.info("configure server {} port: {} path: {} method: {}", pos, blockEntity.getServerPort(),
@@ -236,7 +236,7 @@ public class WebserverBlock extends StatefulBlock {
     }
   }
 
-  public static void startServer(BlockPos pos, ServerWorld world, WebServerContext wctx) {
+  public static void startServer(BlockPos pos, ServerWorld world, WebserverContext wctx) {
     // read the values from interpolation
     String port = Interpolate.getValue(wctx.getServerPort());
     String path = Interpolate.getValue(wctx.getServerPath());
