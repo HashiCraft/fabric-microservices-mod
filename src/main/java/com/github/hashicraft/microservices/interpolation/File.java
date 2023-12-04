@@ -51,6 +51,6 @@ public class File {
       }
     }
 
-    return out;
+    return "";
   }
 }

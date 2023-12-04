@@ -6,40 +6,46 @@ import io.javalin.Javalin;
 
 public class WebserverContext {
   @Expose
-  private String serverPort;
+  private String port;
 
   @Expose
-  private String serverPath;
+  private String path;
 
   @Expose
-  private String serverMethod;
+  private String method;
+
+  @Expose
+  private String tlsCert;
+
+  @Expose
+  private String tlsKey;
 
   // reference to the server, this will not be serialized
   private Javalin server;
 
   // getters and setters for private methods
-  public String getServerPort() {
-    return serverPort;
+  public String getPort() {
+    return port;
   }
 
-  public void setServerPort(String port) {
-    this.serverPort = port;
+  public void setPort(String port) {
+    this.port = port;
   }
 
-  public String getServerPath() {
-    return this.serverPath;
+  public String getPath() {
+    return this.path;
   }
 
-  public void setServerPath(String path) {
-    this.serverPath = path;
+  public void setPath(String path) {
+    this.path = path;
   }
 
-  public String getServerMethod() {
-    return this.serverMethod;
+  public String getMethod() {
+    return this.method;
   }
 
-  public void setServerMethod(String method) {
-    this.serverMethod = method;
+  public void setMethod(String method) {
+    this.method = method;
   }
 
   public Javalin getServer() {
@@ -48,6 +54,22 @@ public class WebserverContext {
 
   public void setServer(Javalin server) {
     this.server = server;
+  }
+
+  public String getTlsCert() {
+    return this.tlsCert;
+  }
+
+  public void setTlsCert(String cert) {
+    this.tlsCert = cert;
+  }
+
+  public String getTlsKey() {
+    return this.tlsKey;
+  } 
+
+  public void setTlsKey(String key) {
+    this.tlsKey = key;
   }
 
   public WebserverContext() {

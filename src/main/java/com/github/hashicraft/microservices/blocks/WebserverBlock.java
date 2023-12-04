@@ -18,6 +18,7 @@ import com.github.hashicraft.microservices.interpolation.Interpolate;
 import com.github.hashicraft.stateful.blocks.StatefulBlock;
 
 import io.javalin.Javalin;
+import io.javalin.community.ssl.SSLPlugin;
 import io.javalin.http.Context;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -222,9 +223,11 @@ public class WebserverBlock extends StatefulBlock {
         blockEntity.getServerPath(), blockEntity.getServerMethod());
 
     // update the context
-    val.setServerPort(blockEntity.getServerPort());
-    val.setServerPath(blockEntity.getServerPath());
-    val.setServerMethod(blockEntity.getServerMethod());
+    val.setPort(blockEntity.getServerPort());
+    val.setPath(blockEntity.getServerPath());
+    val.setMethod(blockEntity.getServerMethod());
+    val.setTlsCert(blockEntity.getTlsCert());
+    val.setTlsKey(blockEntity.getTlsKey());
 
     startServer(pos, world, val);
 
@@ -238,9 +241,11 @@ public class WebserverBlock extends StatefulBlock {
 
   public static void startServer(BlockPos pos, ServerWorld world, WebserverContext wctx) {
     // read the values from interpolation
-    String port = Interpolate.getValue(wctx.getServerPort());
-    String path = Interpolate.getValue(wctx.getServerPath());
-    String method = Interpolate.getValue(wctx.getServerMethod());
+    String port = Interpolate.getValue(wctx.getPort());
+    String path = Interpolate.getValue(wctx.getPath());
+    String method = Interpolate.getValue(wctx.getMethod());
+    String tlsCert = Interpolate.getValue(wctx.getTlsCert());
+    String tlsKey = Interpolate.getValue(wctx.getTlsKey());
 
     // get the port as an integer
     int iPort = 0;
@@ -251,19 +256,39 @@ public class WebserverBlock extends StatefulBlock {
       return;
     }
 
+    final int serverPort = iPort;
+
     if (path.isEmpty() || method.isEmpty()) {
       MicroservicesMod.LOGGER.error("path or method is empty, not starting");
       return;
     }
 
+    // if the server already exists, close it
     if (wctx.getServer() != null) {
       wctx.getServer().close();
     }
 
     // create the server and set the port
     Javalin javalin = Javalin.create();
-    javalin.jettyServer().setServerPort(iPort);
-    javalin.jettyServer().setServerHost("0.0.0.0");
+
+    // do we need to configure tls?
+    if (!tlsCert.isEmpty() && !tlsKey.isEmpty()) {
+      MicroservicesMod.LOGGER.info("configuring with TLS");
+
+      SSLPlugin plugin = new SSLPlugin(conf -> {
+        conf.pemFromPath(tlsCert, tlsKey);
+        conf.securePort = serverPort;
+        conf.insecure = false;
+        conf.host = "0.0.0.0";
+      });
+
+      javalin.updateConfig(javalinConfig -> {
+        javalinConfig.plugins.register(plugin);
+      });
+    } else {
+      javalin.jettyServer().setServerPort(serverPort);
+      javalin.jettyServer().setServerHost("0.0.0.0");
+    }
 
     // start the server async
     service.submit(() -> {

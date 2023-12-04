@@ -48,6 +48,6 @@ public class Env {
       }
     }
 
-    return out;
+    return "";
   }
 }

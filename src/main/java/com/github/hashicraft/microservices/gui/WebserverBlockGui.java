@@ -53,15 +53,33 @@ public class WebserverBlockGui extends LightweightGuiDescription {
     methodField = new WTextField(Text.literal("The HTTP method for the request"));
     panel.add(methodField, 0, 7, 16, 2);
     methodField.setMaxLength(255);
+    
+    WLabel tlsCertMethod = new WLabel(Text.literal("TLS Cert"));
+    panel.add(tlsCertMethod, 0, 9, 4, 1);
+    
+    WTextField tlsCertField;
+    tlsCertField = new WTextField(Text.literal("Path to a TLS cert to confgure HTTPS"));
+    panel.add(tlsCertField, 0, 10, 16, 2);
+    tlsCertField.setMaxLength(255);
+    
+    WLabel tlsKeyMethod = new WLabel(Text.literal("TLS Key"));
+    panel.add(tlsKeyMethod, 0, 12, 4, 1);
+    
+    WTextField tlsKeyField;
+    tlsKeyField = new WTextField(Text.literal("Path to a private key to confgure HTTPS"));
+    panel.add(tlsKeyField, 0, 13, 16, 2);
+    tlsKeyField.setMaxLength(255);
 
     WButton button = new WButton(Text.literal("Save"));
-    panel.add(button, 0, 10, 16, 1);
+    panel.add(button, 0, 15, 13, 1);
 
     // save the details to the entity
     button.setOnClick(() -> {
       entity.setServerPort(portField.getText());
       entity.setServerPath(pathField.getText());
       entity.setServerMethod(methodField.getText());
+      entity.setTlsCert(tlsCertField.getText());
+      entity.setTlsKey(tlsKeyField.getText());
 
       callback.onSave();
 
@@ -74,13 +92,15 @@ public class WebserverBlockGui extends LightweightGuiDescription {
     root.add(labelOutput, 0, 10, 4, 1);
 
     WText textOutput = new WText(Text.literal("Output and error messages from the server"));
-    root.add(textOutput, 0, 11, 20, 2);
+    root.add(textOutput, 0, 10, 20, 2);
 
     // populate the fields
     String serverPort = entity.getServerPort();
     String serverMethod = entity.getServerMethod();
     String serverPath = entity.getServerPath();
     String result = entity.getResult();
+    String tlsCert = entity.getTlsCert();
+    String tlsKey = entity.getTlsKey();
 
     if (serverPort != null) {
       portField.setText(String.valueOf(serverPort));
@@ -96,6 +116,14 @@ public class WebserverBlockGui extends LightweightGuiDescription {
 
     if (result != null) {
       textOutput.setText(Text.literal(result));
+    }
+
+    if (tlsCert != null) {
+      tlsCertField.setText(tlsCert);
+    }
+
+    if (tlsKey != null) {
+      tlsKeyField.setText(tlsKey);
     }
 
     root.validate(this);

@@ -22,6 +22,12 @@ public class WebserverBlockEntity extends StatefulBlockEntity {
   @Syncable
   public String serverMethod;
 
+  @Syncable
+  public String tlsCert;
+
+  @Syncable
+  public String tlsKey;
+
   // tracks the number of ticks a block has been
   // powered for
   public int onCount = 0;
@@ -56,6 +62,22 @@ public class WebserverBlockEntity extends StatefulBlockEntity {
 
   public void setServerMethod(String method) {
     this.serverMethod = method;
+  }
+
+  public String getTlsCert() {
+    return this.tlsCert;
+  }
+
+  public void setTlsCert(String cert) {
+    this.tlsCert = cert;
+  }
+
+  public String getTlsKey() {
+    return this.tlsKey;
+  }
+
+  public void setTlsKey(String key) {
+    this.tlsKey = key;
   }
 
   public WebserverBlockEntity(BlockPos pos, BlockState state) {

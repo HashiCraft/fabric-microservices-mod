@@ -2,15 +2,12 @@ package com.github.hashicraft.microservices.block;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.FileWriter;
 import java.io.IOException;
 
 import org.junit.jupiter.api.Test;
 
 import com.github.hashicraft.microservices.blocks.WebserverContext;
 import com.github.hashicraft.microservices.blocks.Webservers;
-import com.github.hashicraft.microservices.interpolation.File;
-
 import net.minecraft.util.math.BlockPos;
 
 public class WebServersTests {
@@ -20,14 +17,15 @@ public class WebServersTests {
     Webservers servers = new Webservers();
 
     WebserverContext context = new WebserverContext();
-    context.setServerPort("8080");
-    context.setServerPath("/test");
-    context.setServerMethod("GET");
+    context.setPort("8080");
+    context.setPath("/test");
+    context.setMethod("GET");
+    context.setTlsCert("./cert.pem");
+    context.setTlsKey("./key.pem");
 
     servers.add(new BlockPos(1, 2, 3), context);
 
     String json = servers.toJSON();
-
 
     assertContains(json, "\"serverPort\": \"8080\"");
   }
@@ -40,6 +38,8 @@ public class WebServersTests {
             "serverPort": "8080",
             "serverPath": "/test",
             "serverMethod": "GET"
+            "tlsCert": "./cert.pem"
+            "tlsKey": "./key.pem"
           }
         }""";
 
@@ -47,7 +47,11 @@ public class WebServersTests {
 
     WebserverContext context = servers.get(new BlockPos(1, 2, 3));
 
-    assertContains(context.getServerPort(), "8080");
+    assertContains(context.getPort(), "8080");
+    assertContains(context.getPath(), "/test");
+    assertContains(context.getMethod(), "GET");
+    assertContains(context.getTlsCert(), "./cert.pem");
+    assertContains(context.getTlsKey(), "./key.pem");
   }
 
   public void assertContains(String string, String subString) {

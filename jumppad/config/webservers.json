@@ -1,0 +1,9 @@
+{
+  "-26_67_-83": {
+    "port": "8081",
+    "path": "/",
+    "method": "GET",
+    "tlsCert": "/etc/certs/minecraft_leaf-leaf.cert",
+    "tlsKey": "/etc/certs/minecraft_leaf-leaf.key"
+  }
+}
