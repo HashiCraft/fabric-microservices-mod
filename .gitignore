@@ -37,3 +37,5 @@ crash-reports/
 logs/
 remappedSrc/
 .mixin.out/
+
+node_modules/

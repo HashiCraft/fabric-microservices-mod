@@ -1,3 +1,8 @@
+variable "server_disabled" {
+  description = "Start the minecraft server"
+  default     = true
+}
+
 resource "network" "local" {
   subnet = "10.10.0.0/16"
 }
@@ -20,9 +25,34 @@ resource "certificate_leaf" "minecraft_leaf" {
   output = data("certs")
 }
 
+resource "build" "minecraft" {
+  disabled = variable.server_disabled
+
+  container {
+    dockerfile = "Dockerfile"
+    context    = "./server"
+  }
+}
+
+resource "copy" "fabric_mod" {
+  disabled = variable.server_disabled
+
+  source      = "./minecraft/mods"
+  destination = data("mods")
+}
+
+resource "copy" "microservice_mod" {
+  disabled = variable.server_disabled
+
+  source      = "../build/libs/fabric-microservices-mod-1.1.1.jar"
+  destination = "${data("mods")}/fabric-microservices-mod-1.1.1.jar"
+}
+
 resource "container" "minecraft" {
+  disabled = variable.server_disabled
+
   image {
-    name = "hashicraft/minecraftservice:v0.0.3"
+    name = resource.build.minecraft.image
   }
 
   network {
@@ -57,6 +87,8 @@ resource "container" "minecraft" {
     MICROSERVICES_db_host     = "postgres.container.jumppad.dev:5432"
     MICROSERVICES_db_password = "password"
     MICROSERVICES_db_database = "mydb"
+    SRE_BOT_START             = "86,67,-64"
+    SRE_BOT_END               = "86,67,-69"
   }
 
   # Mount the secrets that contain the certs
@@ -73,18 +105,13 @@ resource "container" "minecraft" {
 
   # Mount the local world and config files 
   volume {
-    source      = "./config/world"
+    source      = "./minecraft/world"
     destination = "/minecraft/world"
-  }
-  
-  volume {
-    source      = "./config/mods"
-    destination = "/minecraft/mods"
   }
 
   volume {
-    source      = "./config/databases.json"
-    destination = "/minecraft/config/databases.json"
+    source      = data("mods")
+    destination = "/minecraft/mods"
   }
 
   volume {

@@ -7,6 +7,7 @@ import com.github.hashicraft.microservices.blocks.DatabaseBlock;
 import com.github.hashicraft.microservices.blocks.DatabaseBlockEntity;
 import com.github.hashicraft.microservices.blocks.WebserverBlock;
 import com.github.hashicraft.microservices.blocks.WebserverBlockEntity;
+import com.github.hashicraft.microservices.items.DataItem;
 import com.github.hashicraft.stateful.blocks.EntityServerState;
 
 import net.fabricmc.api.ModInitializer;
@@ -52,6 +53,9 @@ public class MicroservicesMod implements ModInitializer {
 
   public static final Item WEBSERVER_ITEM = new BlockItem(WEBSERVER_BLOCK, new Item.Settings());
 
+  public static final Identifier DATA_ID = new Identifier(MODID, "data_item");
+  public static final Item DATA_ITEM = new DataItem(new Item.Settings());
+
   @Override
   public void onInitialize() {
     // This code runs as soon as Minecraft is in a mod-load-ready state.
@@ -76,9 +80,13 @@ public class MicroservicesMod implements ModInitializer {
     WEBSERVER_BLOCK_ENTITY = Registry.register(Registries.BLOCK_ENTITY_TYPE, WEBSERVER_ENTITY_ID,
         FabricBlockEntityTypeBuilder.create(WebserverBlockEntity::new, WEBSERVER_BLOCK).build());
 
+    // Data block
+    Registry.register(Registries.ITEM, DATA_ID, DATA_ITEM);
+
     ItemGroupEvents.modifyEntriesEvent(ITEM_GROUP).register(content -> {
       content.add(DATABASE_ITEM);
       content.add(WEBSERVER_ITEM);
+      content.add(DATA_ITEM);
     });
 
     // register for block events

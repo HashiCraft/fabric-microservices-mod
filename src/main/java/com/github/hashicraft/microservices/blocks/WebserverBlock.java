@@ -1,6 +1,7 @@
 package com.github.hashicraft.microservices.blocks;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -20,6 +21,7 @@ import com.github.hashicraft.stateful.blocks.StatefulBlock;
 import io.javalin.Javalin;
 import io.javalin.community.ssl.SSLPlugin;
 import io.javalin.http.Context;
+import io.javalin.util.JavalinBindException;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
@@ -29,8 +31,11 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
@@ -43,6 +48,7 @@ import net.minecraft.state.property.Properties;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPointerImpl;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
@@ -61,6 +67,8 @@ public class WebserverBlock extends StatefulBlock {
   // on server tick
   private static Webservers SERVERS = new Webservers();
   private static boolean initialized = false;
+
+  public static final HashMap<String, String> RESPONSES = new HashMap<String, String>();
 
   private static ExecutorService service = new ThreadPoolExecutor(4, 1000, 0L, TimeUnit.MILLISECONDS,
       new LinkedBlockingQueue<Runnable>());
@@ -252,7 +260,7 @@ public class WebserverBlock extends StatefulBlock {
     try {
       iPort = Integer.parseInt(port);
     } catch (NumberFormatException e) {
-      MicroservicesMod.LOGGER.error("invalid port, not starting {}", e);
+      MicroservicesMod.LOGGER.error("invalid port {}, unable to start server, error:{}", port, e);
       return;
     }
 
@@ -295,25 +303,53 @@ public class WebserverBlock extends StatefulBlock {
       // set the method
       switch (method) {
         case "GET":
-          javalin.get(path, ctx -> handleRequest(ctx, world, pos));
+          javalin.get(path, ctx -> {
+            ctx.async(
+                5000,
+                () -> ctx.status(408).result("Request Timeout"),
+                () -> handleRequest(ctx, world, pos));
+          });
           break;
         case "POST":
-          javalin.post(path, ctx -> handleRequest(ctx, world, pos));
+          javalin.post(path, ctx -> {
+            ctx.async(
+                30000,
+                () -> ctx.status(408).result("Request Timeout"),
+                () -> handleRequest(ctx, world, pos));
+          });
           break;
         case "PUT":
-          javalin.put(path, ctx -> handleRequest(ctx, world, pos));
+          javalin.put(path, ctx -> {
+            ctx.async(
+                5000,
+                () -> ctx.status(408).result("Request Timeout"),
+                () -> handleRequest(ctx, world, pos));
+          });
           break;
         case "DELETE":
-          javalin.delete(path, ctx -> handleRequest(ctx, world, pos));
+          javalin.delete(path, ctx -> {
+            ctx.async(
+                5000,
+                () -> ctx.status(408).result("Request Timeout"),
+                () -> handleRequest(ctx, world, pos));
+          });
       }
     });
 
-    // start the server
-    javalin.start();
+    try {
+      // start the server
+      javalin.start();
+    } catch (JavalinBindException e) {
+      MicroservicesMod.LOGGER.error("unable to start server {}", e.getMessage());
+    }
 
     // set the server
     wctx.setServer(javalin);
     SERVERS.add(pos, wctx);
+  }
+
+  public static Context handleTimeout(Context ctx) {
+    return ctx.status(408).result("Request Timeout");
   }
 
   public static Context handleRequest(Context ctx, ServerWorld world, BlockPos pos) {
@@ -326,7 +362,67 @@ public class WebserverBlock extends StatefulBlock {
     // schedule a block tick to update the block so it can disable
     world.scheduleBlockTick(pos, MicroservicesMod.WEBSERVER_BLOCK, 40, TickPriority.NORMAL);
 
-    LOGGER.info("Sending response");
-    return ctx.result("Hello World");
+    // create a data item
+    ItemStack data = new ItemStack(MicroservicesMod.DATA_ITEM);
+
+    // create a dispense location
+    Direction direction = world.getBlockState(pos).get(FACING);
+    BlockPointerImpl pointer = new BlockPointerImpl((ServerWorld) world, pos);
+
+    // generate a request id
+    String requestId = java.util.UUID.randomUUID().toString();
+
+    // set the request properties
+    NbtCompound req = data.getOrCreateNbt();
+    req.putString("request_id", requestId);
+    req.putString("request_path", ctx.path());
+    req.putString("request_method", ctx.method().toString());
+    req.putString("data", ctx.body());
+    data.setNbt(req);
+
+    // dispense the block
+    dispense(world, pointer, data, 1, direction);
+
+    try {
+      // wait until we have a response
+      LOGGER.info("Wait for response {}", requestId);
+
+      // loop until we have a response
+      while (true) {
+        if (RESPONSES.containsKey(requestId)) {
+          LOGGER.info("Sending response {}", requestId);
+          return ctx.result(RESPONSES.get(requestId));
+        }
+
+        Thread.sleep(10);
+      }
+    } catch (InterruptedException e) {
+      LOGGER.error("Error waiting for response {}", e);
+      return ctx.status(408).result("Request Timeout");
+    }
+  }
+
+  public static void dispense(World world, BlockPointerImpl pointer, ItemStack stack, int offset, Direction side) {
+    // get the opposite side so that it dispenses from the read of the block
+    side = side.getOpposite();
+
+    double x = pointer.getX() + 0.7D * (double) side.getOffsetX();
+    double y = pointer.getY() + 0.7D * (double) side.getOffsetY();
+    double z = pointer.getZ() + 0.7D * (double) side.getOffsetZ();
+
+    if (side.getAxis() == Direction.Axis.Y) {
+      y -= 0.425D;
+    } else {
+      y -= 0.45625D;
+    }
+
+    ItemEntity entity = new ItemEntity(world, x, y, z, stack);
+
+    double g = world.random.nextDouble() * 0.1D + 0.2D;
+    entity.setVelocity(
+        world.random.nextGaussian() * 0.007499999832361937D * (double) offset + (double) side.getOffsetX() * g,
+        world.random.nextGaussian() * 0.007499999832361937D * (double) offset + 0.20000000298023224D,
+        world.random.nextGaussian() * 0.007499999832361937D * (double) offset + (double) side.getOffsetZ() * g);
+    world.spawnEntity(entity);
   }
 }

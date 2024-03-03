@@ -66,7 +66,7 @@ public class WebserverContext {
 
   public String getTlsKey() {
     return this.tlsKey;
-  } 
+  }
 
   public void setTlsKey(String key) {
     this.tlsKey = key;

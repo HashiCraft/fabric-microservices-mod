@@ -6,9 +6,13 @@ import com.github.hashicraft.stateful.blocks.Syncable;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 
-public class WebserverBlockEntity extends StatefulBlockEntity {
+public class WebserverBlockEntity extends StatefulBlockEntity implements WebserverInventory {
+
+  private final DefaultedList<ItemStack> items = DefaultedList.ofSize(1, ItemStack.EMPTY);
 
   @Syncable
   public String result;
@@ -86,5 +90,10 @@ public class WebserverBlockEntity extends StatefulBlockEntity {
 
   public WebserverBlockEntity(BlockPos pos, BlockState state, Block parent) {
     super(MicroservicesMod.WEBSERVER_BLOCK_ENTITY, pos, state, parent);
+  }
+
+  @Override
+  public DefaultedList<ItemStack> getItems() {
+    return items;
   }
 }
