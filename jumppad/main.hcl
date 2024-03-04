@@ -56,7 +56,7 @@ resource "container" "minecraft" {
   }
 
   network {
-    id = resource.network.local.id
+    id = resource.network.local.meta.id
   }
 
   # Minecraft
@@ -81,12 +81,12 @@ resource "container" "minecraft" {
     RCON_PASSWORD             = "password"
     SPAWN_ANIMALS             = "true"
     SPAWN_NPCS                = "true"
-    VAULT_ADDR                = "http://vault.container.jumppad.dev:8200"
+    VAULT_ADDR                = "http://vault.container.local.jmpd.in:8200"
     VAULT_TOKEN               = "root"
     HASHICRAFT_env            = "local"
-    MICROSERVICES_db_host     = "postgres.container.jumppad.dev:5432"
-    MICROSERVICES_db_password = "password"
-    MICROSERVICES_db_database = "mydb"
+    MICROSERVICES_db_host     = "postgres.container.local.jmpd.in:5432"
+    MICROSERVICES_db_password = resource.container.postgres.environment.POSTGRES_PASSWORD
+    MICROSERVICES_db_database = resource.container.postgres.environment.POSTGRES_DB
     SRE_BOT_START             = "86,67,-64"
     SRE_BOT_END               = "86,67,-69"
   }
@@ -121,15 +121,18 @@ resource "container" "minecraft" {
 }
 
 resource "container" "postgres" {
+  network {
+    id = resource.network.local.meta.id
+  }
+
   image {
     name = "postgres:15.4"
   }
 
   port {
-    local           = 5432
-    remote          = 5432
-    host            = 5432
-    open_in_browser = ""
+    local  = 5432
+    remote = 5432
+    host   = 5432
   }
 
   environment = {
