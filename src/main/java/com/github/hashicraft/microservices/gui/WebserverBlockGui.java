@@ -53,31 +53,40 @@ public class WebserverBlockGui extends LightweightGuiDescription {
     methodField = new WTextField(Text.literal("The HTTP method for the request"));
     panel.add(methodField, 0, 7, 16, 2);
     methodField.setMaxLength(255);
-    
+
+    WLabel labelTimeout = new WLabel(Text.literal("Timeout (ms)"));
+    panel.add(labelTimeout, 0, 9, 4, 1);
+
+    WTextField timeoutField;
+    timeoutField = new WTextField(Text.literal("The HTTP timeout for the request in milliseconds"));
+    panel.add(timeoutField, 0, 10, 16, 2);
+    timeoutField.setMaxLength(255);
+
     WLabel tlsCertMethod = new WLabel(Text.literal("TLS Cert"));
-    panel.add(tlsCertMethod, 0, 9, 4, 1);
-    
+    panel.add(tlsCertMethod, 0, 12, 4, 1);
+
     WTextField tlsCertField;
     tlsCertField = new WTextField(Text.literal("Path to a TLS cert to confgure HTTPS"));
-    panel.add(tlsCertField, 0, 10, 16, 2);
+    panel.add(tlsCertField, 0, 13, 16, 2);
     tlsCertField.setMaxLength(255);
-    
+
     WLabel tlsKeyMethod = new WLabel(Text.literal("TLS Key"));
-    panel.add(tlsKeyMethod, 0, 12, 4, 1);
-    
+    panel.add(tlsKeyMethod, 0, 15, 4, 1);
+
     WTextField tlsKeyField;
     tlsKeyField = new WTextField(Text.literal("Path to a private key to confgure HTTPS"));
-    panel.add(tlsKeyField, 0, 13, 16, 2);
+    panel.add(tlsKeyField, 0, 16, 16, 2);
     tlsKeyField.setMaxLength(255);
 
     WButton button = new WButton(Text.literal("Save"));
-    panel.add(button, 0, 15, 13, 1);
+    panel.add(button, 0, 18, 13, 1);
 
     // save the details to the entity
     button.setOnClick(() -> {
-      entity.setServerPort(portField.getText());
-      entity.setServerPath(pathField.getText());
-      entity.setServerMethod(methodField.getText());
+      entity.setPort(portField.getText());
+      entity.setPath(pathField.getText());
+      entity.setMethod(methodField.getText());
+      entity.setTimeout(timeoutField.getText());
       entity.setTlsCert(tlsCertField.getText());
       entity.setTlsKey(tlsKeyField.getText());
 
@@ -95,9 +104,10 @@ public class WebserverBlockGui extends LightweightGuiDescription {
     root.add(textOutput, 0, 10, 20, 2);
 
     // populate the fields
-    String serverPort = entity.getServerPort();
-    String serverMethod = entity.getServerMethod();
-    String serverPath = entity.getServerPath();
+    String serverPort = entity.getPort();
+    String serverMethod = entity.getMethod();
+    String serverTimeout = entity.getTimeout();
+    String serverPath = entity.getPath();
     String result = entity.getResult();
     String tlsCert = entity.getTlsCert();
     String tlsKey = entity.getTlsKey();
@@ -108,6 +118,10 @@ public class WebserverBlockGui extends LightweightGuiDescription {
 
     if (serverMethod != null) {
       methodField.setText(serverMethod);
+    }
+
+    if (serverTimeout != null) {
+      timeoutField.setText(serverTimeout);
     }
 
     if (serverPath != null) {

@@ -227,13 +227,14 @@ public class WebserverBlock extends StatefulBlock {
       val = new WebserverContext();
     }
 
-    MicroservicesMod.LOGGER.info("configure server {} port: {} path: {} method: {}", pos, blockEntity.getServerPort(),
-        blockEntity.getServerPath(), blockEntity.getServerMethod());
+    MicroservicesMod.LOGGER.info("configure server {} port: {} path: {} method: {}", pos, blockEntity.getPort(),
+        blockEntity.getPath(), blockEntity.getMethod());
 
     // update the context
-    val.setPort(blockEntity.getServerPort());
-    val.setPath(blockEntity.getServerPath());
-    val.setMethod(blockEntity.getServerMethod());
+    val.setPort(blockEntity.getPort());
+    val.setPath(blockEntity.getPath());
+    val.setMethod(blockEntity.getMethod());
+    val.setTimeout(blockEntity.getTimeout());
     val.setTlsCert(blockEntity.getTlsCert());
     val.setTlsKey(blockEntity.getTlsKey());
 
@@ -250,6 +251,7 @@ public class WebserverBlock extends StatefulBlock {
   public static void startServer(BlockPos pos, ServerWorld world, WebserverContext wctx) {
     // read the values from interpolation
     String port = Interpolate.getValue(wctx.getPort());
+    String timeout = Interpolate.getValue(wctx.getTimeout());
     String path = Interpolate.getValue(wctx.getPath());
     String method = Interpolate.getValue(wctx.getMethod());
     String tlsCert = Interpolate.getValue(wctx.getTlsCert());
@@ -264,7 +266,15 @@ public class WebserverBlock extends StatefulBlock {
       return;
     }
 
+    int iTimeout = 5000;
+    try {
+      iTimeout = Integer.parseInt(timeout);
+    } catch (NumberFormatException e) {
+      MicroservicesMod.LOGGER.error("invalid timeout {}, using default 5000ms, error:{}", timeout, e);
+    }
+
     final int serverPort = iPort;
+    final int serverTimeout = iTimeout;
 
     if (path.isEmpty() || method.isEmpty()) {
       MicroservicesMod.LOGGER.error("path or method is empty, not starting");
@@ -305,7 +315,7 @@ public class WebserverBlock extends StatefulBlock {
         case "GET":
           javalin.get(path, ctx -> {
             ctx.async(
-                5000,
+                serverTimeout,
                 () -> ctx.status(408).result("Request Timeout"),
                 () -> handleRequest(ctx, world, pos));
           });
@@ -313,7 +323,7 @@ public class WebserverBlock extends StatefulBlock {
         case "POST":
           javalin.post(path, ctx -> {
             ctx.async(
-                30000,
+                serverTimeout,
                 () -> ctx.status(408).result("Request Timeout"),
                 () -> handleRequest(ctx, world, pos));
           });
@@ -321,7 +331,7 @@ public class WebserverBlock extends StatefulBlock {
         case "PUT":
           javalin.put(path, ctx -> {
             ctx.async(
-                5000,
+                serverTimeout,
                 () -> ctx.status(408).result("Request Timeout"),
                 () -> handleRequest(ctx, world, pos));
           });
@@ -329,7 +339,7 @@ public class WebserverBlock extends StatefulBlock {
         case "DELETE":
           javalin.delete(path, ctx -> {
             ctx.async(
-                5000,
+                serverTimeout,
                 () -> ctx.status(408).result("Request Timeout"),
                 () -> handleRequest(ctx, world, pos));
           });

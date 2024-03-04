@@ -15,6 +15,9 @@ public class WebserverContext {
   private String method;
 
   @Expose
+  private String timeout;
+
+  @Expose
   private String tlsCert;
 
   @Expose
@@ -46,6 +49,14 @@ public class WebserverContext {
 
   public void setMethod(String method) {
     this.method = method;
+  }
+
+  public String getTimeout() {
+    return this.timeout;
+  }
+
+  public void setTimeout(String timeout) {
+    this.timeout = timeout;
   }
 
   public Javalin getServer() {

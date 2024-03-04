@@ -195,20 +195,32 @@ public class DatabaseBlockEntity extends StatefulBlockEntity implements Database
     Connection conn = DriverManager.getConnection(
         String.format("jdbc:postgresql://%s/%s", address, database),
         username, password);
-    Statement st = conn.createStatement();
 
-    // execute the statement
-    st.execute(sql);
+    String json = "";
 
-    // get the result set
-    ResultSet results = st.getResultSet();
-    if (results == null) {
+    // split the SQL statement by the semi-colon and execute
+    String[] statements = sql.split(";");
+    for (String statement : statements) {
+      if (statement.isEmpty()) {
+        continue;
+      }
+
+      // execute the statement
+      LOGGER.info("Execute SQL statement {}", statement);
+      Statement st = conn.createStatement();
+      st.execute(statement);
+
+      // get the result set
+      ResultSet results = st.getResultSet();
+      if (results == null) {
+        LOGGER.info("No results from the query");
+      } else {
+        json = resultSetToJson(results);
+      }
+
       st.close();
-      return "";
     }
 
-    String json = resultSetToJson(results);
-    st.close();
     return json;
   }
 

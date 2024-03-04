@@ -18,23 +18,22 @@ public class WebserverBlockEntity extends StatefulBlockEntity implements Webserv
   public String result;
 
   @Syncable
-  public String serverPort;
+  public String port;
 
   @Syncable
-  public String serverPath;
+  public String path;
 
   @Syncable
-  public String serverMethod;
+  public String method;
+
+  @Syncable
+  public String timeout;
 
   @Syncable
   public String tlsCert;
 
   @Syncable
   public String tlsKey;
-
-  // tracks the number of ticks a block has been
-  // powered for
-  public int onCount = 0;
 
   public String getResult() {
     return result;
@@ -44,28 +43,36 @@ public class WebserverBlockEntity extends StatefulBlockEntity implements Webserv
     this.result = result;
   }
 
-  public String getServerPort() {
-    return serverPort;
+  public String getPort() {
+    return port;
   }
 
-  public void setServerPort(String port) {
-    this.serverPort = port;
+  public void setPort(String port) {
+    this.port = port;
   }
 
-  public String getServerPath() {
-    return this.serverPath;
+  public String getPath() {
+    return this.path;
   }
 
-  public void setServerPath(String path) {
-    this.serverPath = path;
+  public void setPath(String path) {
+    this.path = path;
   }
 
-  public String getServerMethod() {
-    return this.serverMethod;
+  public String getMethod() {
+    return this.method;
   }
 
-  public void setServerMethod(String method) {
-    this.serverMethod = method;
+  public void setMethod(String method) {
+    this.method = method;
+  }
+
+  public String getTimeout() {
+    return this.timeout;
+  }
+
+  public void setTimeout(String timeout) {
+    this.timeout = timeout;
   }
 
   public String getTlsCert() {
