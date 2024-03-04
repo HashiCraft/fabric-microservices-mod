@@ -44,8 +44,8 @@ resource "copy" "fabric_mod" {
 resource "copy" "microservice_mod" {
   disabled = variable.server_disabled
 
-  source      = "../build/libs/fabric-microservices-mod-1.1.1.jar"
-  destination = "${data("mods")}/fabric-microservices-mod-1.1.1.jar"
+  source      = "../build/libs/fabric-microservices-mod-1.2.0.jar"
+  destination = "${data("mods")}/fabric-microservices-mod-1.2.0.jar"
 }
 
 resource "container" "minecraft" {
