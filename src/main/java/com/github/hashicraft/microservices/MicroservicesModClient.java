@@ -1,9 +1,12 @@
 package com.github.hashicraft.microservices;
 
 import com.github.hashicraft.microservices.events.DatabaseBlockClicked;
+import com.github.hashicraft.microservices.events.WasmBlockClicked;
 import com.github.hashicraft.microservices.events.WebserverBlockClicked;
 import com.github.hashicraft.microservices.gui.DatabaseBlockGui;
 import com.github.hashicraft.microservices.gui.DatabaseBlockScreen;
+import com.github.hashicraft.microservices.gui.WasmBlockGui;
+import com.github.hashicraft.microservices.gui.WasmBlockScreen;
 import com.github.hashicraft.microservices.gui.WebserverBlockGui;
 import com.github.hashicraft.microservices.gui.WebserverBlockScreen;
 
@@ -32,6 +35,14 @@ public class MicroservicesModClient implements ClientModInitializer {
     WebserverBlockClicked.EVENT.register((block, callback) -> {
       WebserverBlockGui gui = new WebserverBlockGui(block, callback);
       WebserverBlockScreen screen = new WebserverBlockScreen(gui);
+      MinecraftClient.getInstance().setScreen(screen);
+
+      return ActionResult.PASS;
+    });
+
+    WasmBlockClicked.EVENT.register((block, callback) -> {
+      WasmBlockGui gui = new WasmBlockGui(block, callback);
+      WasmBlockScreen screen = new WasmBlockScreen(gui);
       MinecraftClient.getInstance().setScreen(screen);
 
       return ActionResult.PASS;

@@ -88,14 +88,14 @@ public class WebserverBlock extends StatefulBlock {
       WebserverBlockClicked.EVENT.invoker().interact(blockEntity, () -> {
         blockEntity.markForUpdate();
 
-        PacketByteBuf buf = PacketByteBufs.create();
-        buf.writeBlockPos(pos);
-
         // notify that the server has been reconfigured
         // we need to wait until the block state has synced so wait here
         service.submit(() -> {
           try {
             Thread.sleep(1000);
+
+            PacketByteBuf buf = PacketByteBufs.create();
+            buf.writeBlockPos(pos);
             ClientPlayNetworking.send(Messages.WEBSERVER_BLOCK_UPDATED, buf);
           } catch (InterruptedException e) {
             e.printStackTrace();
@@ -155,7 +155,6 @@ public class WebserverBlock extends StatefulBlock {
   }
 
   @Override
-  // scheduledTick is called after the sql statement has been executed
   public void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
     MicroservicesMod.LOGGER.info("scheduledTick {}", pos);
     if (!state.get(POWERED).booleanValue()) {

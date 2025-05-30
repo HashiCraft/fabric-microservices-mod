@@ -1,7 +1,7 @@
 plugins {
   id 'java'
   id 'com.github.johnrengelman.shadow' version '8.1.1'
-	id 'fabric-loom' version '1.4-SNAPSHOT'
+	id 'fabric-loom' version '1.10-SNAPSHOT'
 	id 'maven-publish'
 }
 
@@ -27,12 +27,13 @@ dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
   // bundle the external mods
   modImplementation include("io.github.cottonmc:LibGui:${project.libgui_version}")
 	modImplementation include("com.github.hashicraft:fabric-stateful-mod:${stateful_version}")
+
+  implementation include("io.github.kawamuray.wasmtime:wasmtime-java:${wasmtime_version}")
 
   // add the external dependencies to the fat jar
   shadow("org.postgresql:postgresql:42.6.0");
@@ -46,9 +47,6 @@ dependencies {
   implementation include('org.eclipse.jetty:jetty-alpn-java-server:11.0.17');
   implementation include('org.eclipse.jetty:jetty-alpn-conscrypt-server:11.0.17');
   implementation include('org.eclipse.jetty.http2:http2-server:11.0.17');
-  //implementation include("com.jayway.jsonpath:json-path:2.9.0");
-  //implementation include("org.json:json:20240205");
-  
 
   testImplementation('uk.org.webcompere:system-stubs-jupiter:2.1.6')
   testImplementation("org.junit.jupiter:junit-jupiter-engine:5.7.2")

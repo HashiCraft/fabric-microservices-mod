@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 
 import com.github.hashicraft.microservices.blocks.DatabaseBlock;
 import com.github.hashicraft.microservices.blocks.DatabaseBlockEntity;
+import com.github.hashicraft.microservices.blocks.WasmBlock;
+import com.github.hashicraft.microservices.blocks.WasmBlockEntity;
 import com.github.hashicraft.microservices.blocks.WebserverBlock;
 import com.github.hashicraft.microservices.blocks.WebserverBlockEntity;
 import com.github.hashicraft.microservices.items.DataItem;
@@ -35,8 +37,8 @@ public class MicroservicesMod implements ModInitializer {
 
   // Database Block
   public static final Identifier DATABASE_BLOCK_ID = new Identifier(MODID, "database_block");
-  public static final DatabaseBlock DATABASE_BLOCK = new DatabaseBlock(FabricBlockSettings.create().strength(4.0f)
-      .nonOpaque().solid());
+  public static final DatabaseBlock DATABASE_BLOCK = new DatabaseBlock(
+      FabricBlockSettings.create().strength(4.0f).nonOpaque().solid());
 
   public static final Identifier DATABASE_ENTITY_ID = new Identifier(MODID, "database_entity");
   public static BlockEntityType<DatabaseBlockEntity> DATABASE_BLOCK_ENTITY;
@@ -45,21 +47,32 @@ public class MicroservicesMod implements ModInitializer {
 
   // Webserver Block
   public static final Identifier WEBSERVER_BLOCK_ID = new Identifier(MODID, "webserver_block");
-  public static final WebserverBlock WEBSERVER_BLOCK = new WebserverBlock(FabricBlockSettings.create().strength(4.0f)
-      .nonOpaque().solid());
+  public static final WebserverBlock WEBSERVER_BLOCK = new WebserverBlock(
+      FabricBlockSettings.create().strength(4.0f).nonOpaque().solid());
 
   public static final Identifier WEBSERVER_ENTITY_ID = new Identifier(MODID, "webserver_entity");
   public static BlockEntityType<WebserverBlockEntity> WEBSERVER_BLOCK_ENTITY;
 
   public static final Item WEBSERVER_ITEM = new BlockItem(WEBSERVER_BLOCK, new Item.Settings());
 
+  // Data Item
   public static final Identifier DATA_ID = new Identifier(MODID, "data_item");
   public static final Item DATA_ITEM = new DataItem(new Item.Settings());
+
+  // Wasm Block
+  public static final Identifier WASM_BLOCK_ID = new Identifier(MODID, "wasm_block");
+  public static final WasmBlock WASM_BLOCK = new WasmBlock(
+      FabricBlockSettings.create().strength(4.0f).nonOpaque().solid());
+
+  public static final Identifier WASM_ENTITY_ID = new Identifier(MODID, "wasm_entity");
+  public static BlockEntityType<WasmBlockEntity> WASM_BLOCK_ENTITY;
+
+  public static final Item WASM_ITEM = new BlockItem(WASM_BLOCK, new Item.Settings());
 
   @Override
   public void onInitialize() {
     // This code runs as soon as Minecraft is in a mod-load-ready state.
-    System.out.println("Microservices v1.1.0 loading...");
+    System.out.println("Microservices v1.2.0 loading...");
 
     Registry.register(Registries.ITEM_GROUP, ITEM_GROUP, FabricItemGroup.builder()
         .icon(() -> new ItemStack(DATABASE_BLOCK))
@@ -83,16 +96,30 @@ public class MicroservicesMod implements ModInitializer {
     // Data block
     Registry.register(Registries.ITEM, DATA_ID, DATA_ITEM);
 
+    // Wasm block
+    WASM_BLOCK_ENTITY = Registry.register(Registries.BLOCK_ENTITY_TYPE, WASM_ENTITY_ID,
+        FabricBlockEntityTypeBuilder.create(WasmBlockEntity::new, WASM_BLOCK).build());
+
+    Registry.register(Registries.BLOCK, WASM_BLOCK_ID, WASM_BLOCK);
+    Registry.register(Registries.ITEM, WASM_BLOCK_ID, WASM_ITEM);
+
+    // register the item group
     ItemGroupEvents.modifyEntriesEvent(ITEM_GROUP).register(content -> {
       content.add(DATABASE_ITEM);
       content.add(WEBSERVER_ITEM);
       content.add(DATA_ITEM);
+      content.add(WASM_ITEM);
     });
 
     // register for block events
     DatabaseBlock.registerEvents();
     WebserverBlock.registerEvents();
+    WasmBlock.registerEvents();
 
+    // register the entity server state updates
     EntityServerState.RegisterStateUpdates();
+
+    // start the wasm runtime
+    WasmBlock.startRuntime();
   }
 }

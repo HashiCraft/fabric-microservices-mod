@@ -108,8 +108,8 @@ public class DatabaseBlock extends StatefulBlock {
     world.updateNeighborsAlways(pos, state.getBlock());
   }
 
+  // called after the database query is executed to disable the power output
   @Override
-  // scheduledTick is called after the sql statement has been executed
   public void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
     MicroservicesMod.LOGGER.info("scheduledTick {}", pos);
     if (!state.get(POWERED).booleanValue()) {

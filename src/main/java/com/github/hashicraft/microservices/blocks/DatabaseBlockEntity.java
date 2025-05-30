@@ -68,10 +68,6 @@ public class DatabaseBlockEntity extends StatefulBlockEntity implements Database
   @Syncable
   public String sqlStatement;
 
-  // tracks the number of ticks a block has been
-  // powered for
-  public int onCount = 0;
-
   public String getResult() {
     return result;
   }

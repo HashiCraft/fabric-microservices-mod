@@ -12,4 +12,8 @@ public class Messages {
   public static Identifier WEBSERVER_BLOCK_REGISTER = new Identifier(MicroservicesMod.MODID, "register_webserver");
   public static Identifier WEBSERVER_BLOCK_REMOVE = new Identifier(MicroservicesMod.MODID, "remove_webserver");
   public static Identifier WEBSERVER_BLOCK_UPDATED = new Identifier(MicroservicesMod.MODID, "update_webserver");
+
+  public static Identifier WASM_BLOCK_REGISTER = new Identifier(MicroservicesMod.MODID, "register_wasm");
+  public static Identifier WASM_BLOCK_REMOVE = new Identifier(MicroservicesMod.MODID, "remove_wasm");
+  public static Identifier WASM_BLOCK_UPDATED = new Identifier(MicroservicesMod.MODID, "update_wasm");
 }
