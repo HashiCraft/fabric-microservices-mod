@@ -32,7 +32,7 @@ bin/
 
 run/
 
-wasm/rust/target
+wasm_examples/rust/target
 crash-reports/
 logs/
 remappedSrc/
