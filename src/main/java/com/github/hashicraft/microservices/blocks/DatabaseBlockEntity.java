@@ -14,25 +14,30 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import com.github.hashicraft.microservices.MicroservicesMod;
+import com.github.hashicraft.microservices.ModBlockEntities;
+import com.github.hashicraft.microservices.ModBlocks;
+import com.github.hashicraft.microservices.ModItems;
 import com.github.hashicraft.microservices.interpolation.Interpolate;
 import com.github.hashicraft.stateful.blocks.StatefulBlockEntity;
 import com.github.hashicraft.stateful.blocks.Syncable;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.JSONArray;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.state.property.DirectionProperty;
+import net.minecraft.state.property.EnumProperty;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.collection.DefaultedList;
-import net.minecraft.util.math.BlockPointerImpl;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -40,7 +45,9 @@ import net.minecraft.world.tick.TickPriority;
 
 public class DatabaseBlockEntity extends StatefulBlockEntity implements DatabaseInventory {
 
-  public static final DirectionProperty FACING = Properties.HORIZONTAL_FACING;
+  public static final EnumProperty<Direction> FACING = Properties.HORIZONTAL_FACING;
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseBlockEntity.class);
 
   // background thread service
   private static ExecutorService service = new ThreadPoolExecutor(4, 1000, 0L, TimeUnit.MILLISECONDS,
@@ -117,12 +124,12 @@ public class DatabaseBlockEntity extends StatefulBlockEntity implements Database
   }
 
   public DatabaseBlockEntity(BlockPos pos, BlockState state) {
-    super(MicroservicesMod.DATABASE_BLOCK_ENTITY, pos, state, null);
+    super(ModBlockEntities.DATABASE_BLOCK_ENTITY, pos, state, null);
     this.pos = pos;
   }
 
   public DatabaseBlockEntity(BlockPos pos, BlockState state, Block parent) {
-    super(MicroservicesMod.DATABASE_BLOCK_ENTITY, pos, state, parent);
+    super(ModBlockEntities.DATABASE_BLOCK_ENTITY, pos, state, parent);
     this.pos = pos;
   }
 
@@ -153,22 +160,19 @@ public class DatabaseBlockEntity extends StatefulBlockEntity implements Database
         world.setBlockState(pos, state, Block.NOTIFY_ALL);
 
         // schedule a block tick to update the block so it can disable
-        world.scheduleBlockTick(pos, MicroservicesMod.DATABASE_BLOCK, 40, TickPriority.NORMAL);
+        world.scheduleBlockTick(pos, ModBlocks.DATABASE_BLOCK, 40, TickPriority.NORMAL);
 
         // create a data item
-        ItemStack card = new ItemStack(MicroservicesMod.DATA_ITEM);
-
-        // create a dispense location
-        Direction direction = world.getBlockState(pos).get(FACING);
-        BlockPointerImpl pointer = new BlockPointerImpl((ServerWorld) world, pos);
-
-        NbtCompound nbt = card.getOrCreateNbt();
+        ItemStack card = new ItemStack(ModItems.DATA_ITEM);
+        NbtComponent nbtComponent = card.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT);
+        NbtCompound nbt = nbtComponent.copyNbt();
         nbt.putString("request_id", requestID);
         nbt.putString("data", result);
-        card.setNbt(nbt);
+        card.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
 
-        // dispense the block
-        dispense(world, pointer, card, 1, direction);
+        // create a dispense location and dispense the item
+        Direction direction = world.getBlockState(pos).get(FACING);
+        dispense(world, pos, card, 1, direction);
       } catch (SQLException e) {
         LOGGER.error("Error executing SQL statement {}", e);
         this.result = "error";
@@ -235,22 +239,25 @@ public class DatabaseBlockEntity extends StatefulBlockEntity implements Database
           })
           .collect(Collectors.toList());
 
-      JSONArray result = new JSONArray();
+      Gson gson = new Gson();
+      JsonArray result = new JsonArray();
       while (rs.next()) {
-        JSONObject row = new JSONObject();
+        JsonObject row = new JsonObject();
         colNames.forEach(cn -> {
           try {
-            row.put(cn, rs.getObject(cn));
-          } catch (JSONException | SQLException e) {
+            JsonElement val = gson.toJsonTree(rs.getObject(cn));
+            row.add(cn.toString(), val);
+          } catch (SQLException e) {
             e.printStackTrace();
           }
         });
-        result.put(row);
+
+        result.add(row);
       }
 
       // if there is only one element do not return an array
-      if (result.length() == 1) {
-        return result.getJSONObject(0).toString();
+      if (result.size() == 1) {
+        return result.get(0).toString();
       }
 
       // convert the result set to a JSON string
@@ -261,13 +268,13 @@ public class DatabaseBlockEntity extends StatefulBlockEntity implements Database
     }
   }
 
-  private void dispense(World world, BlockPointerImpl pointer, ItemStack stack, int offset, Direction side) {
+  private void dispense(World world, BlockPos pos, ItemStack stack, int offset, Direction side) {
     // get the opposite side so that it dispenses from the read of the block
     side = side.getOpposite();
 
-    double x = pointer.getX() + 0.7D * (double) side.getOffsetX();
-    double y = pointer.getY() + 0.7D * (double) side.getOffsetY();
-    double z = pointer.getZ() + 0.7D * (double) side.getOffsetZ();
+    double x = pos.getX() + 0.7D * (double) side.getOffsetX();
+    double y = pos.getY() + 0.7D * (double) side.getOffsetY();
+    double z = pos.getZ() + 0.7D * (double) side.getOffsetZ();
 
     if (side.getAxis() == Direction.Axis.Y) {
       y -= 0.425D;

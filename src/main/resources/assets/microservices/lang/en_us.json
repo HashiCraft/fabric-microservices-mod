@@ -1,0 +1,6 @@
+{
+  "item.microservices.data_item": "Data",
+  "item.microservices.wasm_block": "Wasm Function",
+  "item.microservices.webserver_block": "Webserver",
+  "item.microservices.database_block": "Database"
+}

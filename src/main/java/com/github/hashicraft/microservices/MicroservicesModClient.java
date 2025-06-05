@@ -47,5 +47,8 @@ public class MicroservicesModClient implements ClientModInitializer {
 
       return ActionResult.PASS;
     });
+
+    System.out.println("Registering Microservices items");
+    ModItems.initializeClient();
   }
 }

@@ -2,7 +2,6 @@ package com.github.hashicraft.microservices.blocks;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Map.Entry;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -11,44 +10,39 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.hashicraft.microservices.Client;
 import com.github.hashicraft.microservices.MicroservicesMod;
-import com.github.hashicraft.microservices.events.Messages;
+import com.github.hashicraft.microservices.ModBlocks;
+import com.github.hashicraft.microservices.ModItems;
 import com.github.hashicraft.microservices.events.WebserverBlockClicked;
+import com.github.hashicraft.microservices.events.WebserverBlockRemovedPacket;
+import com.github.hashicraft.microservices.events.WebserverBlockUpdatedPacket;
 import com.github.hashicraft.microservices.interpolation.Interpolate;
 import com.github.hashicraft.stateful.blocks.StatefulBlock;
 
-import io.javalin.Javalin;
-import io.javalin.community.ssl.SSLPlugin;
-import io.javalin.http.Context;
-import io.javalin.util.JavalinBindException;
+import io.undertow.Undertow;
+import io.undertow.server.HttpServerExchange;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
-import net.fabricmc.fabric.api.networking.v1.PacketSender;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayNetworkHandler;
-import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
-import net.minecraft.state.property.DirectionProperty;
+import net.minecraft.state.property.EnumProperty;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPointerImpl;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
@@ -60,13 +54,14 @@ import net.minecraft.world.tick.TickPriority;
 public class WebserverBlock extends StatefulBlock {
   private static final Logger LOGGER = LoggerFactory.getLogger(WebserverBlock.class);
 
-  public static final DirectionProperty FACING = Properties.HORIZONTAL_FACING;
+  public static final EnumProperty<Direction> FACING = Properties.HORIZONTAL_FACING;
   public static final BooleanProperty POWERED = Properties.POWERED;
 
   // keeps a map of registered database blocks so we can check for updates
   // on server tick
   private static Webservers SERVERS = new Webservers();
-  private static boolean initialized = false;
+  private static Boolean initialized = false;
+  private static final Object INIT_LOCK = new Object();
 
   public static final HashMap<String, String> RESPONSES = new HashMap<String, String>();
 
@@ -79,7 +74,7 @@ public class WebserverBlock extends StatefulBlock {
   }
 
   @Override
-  public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand,
+  protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player,
       BlockHitResult hit) {
 
     WebserverBlockEntity blockEntity = (WebserverBlockEntity) world.getBlockEntity(pos);
@@ -93,10 +88,8 @@ public class WebserverBlock extends StatefulBlock {
         service.submit(() -> {
           try {
             Thread.sleep(1000);
-
-            PacketByteBuf buf = PacketByteBufs.create();
-            buf.writeBlockPos(pos);
-            ClientPlayNetworking.send(Messages.WEBSERVER_BLOCK_UPDATED, buf);
+            LOGGER.info("Sending webserver block updated packet for {}", pos);
+            ClientPlayNetworking.send(new WebserverBlockUpdatedPacket(pos));
           } catch (InterruptedException e) {
             e.printStackTrace();
           }
@@ -109,18 +102,13 @@ public class WebserverBlock extends StatefulBlock {
 
   @Override
   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-    LOGGER.info("createBlockEntity {} {}", pos, Client.isClient());
-
     return new WebserverBlockEntity(pos, state, this);
   }
 
   @Override
   public void onBroken(WorldAccess world, BlockPos pos, BlockState state) {
     if (world.isClient()) {
-      PacketByteBuf buf = PacketByteBufs.create();
-      buf.writeBlockPos(pos);
-
-      ClientPlayNetworking.send(Messages.WEBSERVER_BLOCK_REMOVE, buf);
+      ClientPlayNetworking.send(new WebserverBlockRemovedPacket(pos));
     }
   }
 
@@ -149,9 +137,9 @@ public class WebserverBlock extends StatefulBlock {
   }
 
   @Override
-  public void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
-    super.onStateReplaced(state, world, pos, newState, moved);
-    world.updateNeighborsAlways(pos, state.getBlock());
+  protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+    super.onStateReplaced(state, world, pos, moved);
+    world.updateNeighborsAlways(pos, state.getBlock(), null);
   }
 
   @Override
@@ -167,77 +155,86 @@ public class WebserverBlock extends StatefulBlock {
 
   // register this class to listen to server play networkiing events
   public static void registerEvents() {
-    ServerPlayNetworking.registerGlobalReceiver(Messages.WEBSERVER_BLOCK_REMOVE,
-        (MinecraftServer server, ServerPlayerEntity player, ServerPlayNetworkHandler handler, PacketByteBuf buf,
-            PacketSender responseSender) -> {
-          BlockPos pos = buf.readBlockPos();
-          handleBlockRemove(pos);
-        });
+    PayloadTypeRegistry.playC2S().register(WebserverBlockRemovedPacket.PACKET_ID,
+        WebserverBlockRemovedPacket.PACKET_CODEC);
 
-    ServerPlayNetworking.registerGlobalReceiver(Messages.WEBSERVER_BLOCK_UPDATED,
-        (MinecraftServer server, ServerPlayerEntity player, ServerPlayNetworkHandler handler, PacketByteBuf buf,
-            PacketSender responseSender) -> {
-          BlockPos pos = buf.readBlockPos();
+    PayloadTypeRegistry.playC2S().register(WebserverBlockUpdatedPacket.PACKET_ID,
+        WebserverBlockUpdatedPacket.PACKET_CODEC);
 
-          // this needs to happen on the server thread or the block entity will not exist
-          server.execute(() -> {
-            handleBlockUpdate(pos, server.getOverworld());
-          });
-        });
+    ServerPlayNetworking.registerGlobalReceiver(WebserverBlockRemovedPacket.PACKET_ID, (payload, context) -> {
+      handleBlockRemove(payload.pos());
+    });
 
-    ServerTickEvents.START_SERVER_TICK.register((MinecraftServer server) -> {
-      server.execute(() -> {
-        if (!initialized) {
-          initialized = true;
+    ServerPlayNetworking.registerGlobalReceiver(WebserverBlockUpdatedPacket.PACKET_ID, (payload, context) -> {
+      handleBlockUpdate(payload.pos(), context.server().getOverworld());
+    });
 
-          SERVERS = Webservers.loadFromConfig();
-
-          // start all the servers
-          for (Entry<BlockPos, WebserverContext> entry : SERVERS.entrySet()) {
-            server.execute(() -> {
-              startServer(entry.getKey(), server.getOverworld(), entry.getValue());
-            });
-          }
+    ServerTickEvents.START_SERVER_TICK.register(server -> {
+      synchronized (INIT_LOCK) {
+        if (initialized) {
+          return;
         }
-      });
+
+        initialized = true;
+
+        SERVERS = Webservers.loadFromConfig();
+
+        // start all the servers
+        MicroservicesMod.LOGGER.info("Starting webservers from config");
+        SERVERS.getContexts().forEach((ctx) -> {
+          startServer(server.getOverworld(), ctx);
+        });
+      }
     });
   }
 
   public static void handleBlockRemove(BlockPos pos) {
     MicroservicesMod.LOGGER.info("Received remove_webserver message {}", pos);
-    if (SERVERS.exists(pos)) {
-      var val = SERVERS.get(pos);
+    var server = SERVERS.getAtLocation(pos);
+    if (server.isEmpty()) {
+      MicroservicesMod.LOGGER.info("No server found at {}", pos);
+      return;
+    }
 
-      // when removing a block ensure the server is stopped
-      if (val.getServer() != null) {
-        val.getServer().close();
-      }
+    server.get().removeHandler(pos);
 
-      SERVERS.remove(pos);
+    // if there are no more handlers for this server, remove it
+    if (server.get().getHandlers().isEmpty()) {
+      MicroservicesMod.LOGGER.info("Removed server at {}", pos);
+      server.get().getServer().stop();
+      SERVERS.removeAtLocation(pos);
     }
   }
 
   public static void handleBlockUpdate(BlockPos pos, ServerWorld world) {
     WebserverBlockEntity blockEntity = (WebserverBlockEntity) world.getBlockEntity(pos);
-    var val = SERVERS.get(pos);
 
-    // we might not have created the instance yet
-    if (val == null) {
-      val = new WebserverContext();
-    }
+    String port = Interpolate.getValue(blockEntity.getPort());
+    String timeout = Interpolate.getValue(blockEntity.getTimeout());
+    String path = Interpolate.getValue(blockEntity.getPath());
+    String method = Interpolate.getValue(blockEntity.getMethod());
 
-    MicroservicesMod.LOGGER.info("configure server {} port: {} path: {} method: {}", pos, blockEntity.getPort(),
-        blockEntity.getPath(), blockEntity.getMethod());
+    var ctx = SERVERS.getOrDefault(port);
 
-    // update the context
-    val.setPort(blockEntity.getPort());
-    val.setPath(blockEntity.getPath());
-    val.setMethod(blockEntity.getMethod());
-    val.setTimeout(blockEntity.getTimeout());
-    val.setTlsCert(blockEntity.getTlsCert());
-    val.setTlsKey(blockEntity.getTlsKey());
+    MicroservicesMod.LOGGER.info(
+        "configure server {} port: {} path: {} method: {}",
+        pos,
+        blockEntity.getPort(),
+        blockEntity.getPath(),
+        blockEntity.getMethod());
 
-    startServer(pos, world, val);
+    // create a new handler if it doesn't exist
+    var handler = ctx.getHandlerForPos(pos);
+    handler.setPath(path);
+    handler.setMethod(method);
+    handler.setTimeout(timeout);
+    ctx.updateHandler(handler);
+
+    // set the TLS cert and key
+    ctx.setTlsCert(blockEntity.getTlsCert());
+    ctx.setTlsKey(blockEntity.getTlsKey());
+
+    startServer(world, ctx);
 
     // serialize the servers collection
     try {
@@ -247,177 +244,130 @@ public class WebserverBlock extends StatefulBlock {
     }
   }
 
-  public static void startServer(BlockPos pos, ServerWorld world, WebserverContext wctx) {
-    // read the values from interpolation
-    String port = Interpolate.getValue(wctx.getPort());
-    String timeout = Interpolate.getValue(wctx.getTimeout());
-    String path = Interpolate.getValue(wctx.getPath());
-    String method = Interpolate.getValue(wctx.getMethod());
-    String tlsCert = Interpolate.getValue(wctx.getTlsCert());
-    String tlsKey = Interpolate.getValue(wctx.getTlsKey());
-
+  public static void startServer(ServerWorld world, WebserverContext ctx) {
     // get the port as an integer
-    int iPort = 0;
+    int serverPort = 0;
     try {
-      iPort = Integer.parseInt(port);
+      serverPort = Integer.parseInt(ctx.getPort());
     } catch (NumberFormatException e) {
-      MicroservicesMod.LOGGER.error("invalid port {}, unable to start server, error:{}", port, e);
+      MicroservicesMod.LOGGER.error("invalid port {}, unable to start server, error:{}", ctx.getPort(), e);
       return;
     }
 
-    int iTimeout = 5000;
-    try {
-      iTimeout = Integer.parseInt(timeout);
-    } catch (NumberFormatException e) {
-      MicroservicesMod.LOGGER.error("invalid timeout {}, using default 5000ms, error:{}", timeout, e);
-    }
-
-    final int serverPort = iPort;
-    final int serverTimeout = iTimeout;
-
-    if (path.isEmpty() || method.isEmpty()) {
-      MicroservicesMod.LOGGER.error("path or method is empty, not starting");
-      return;
-    }
-
-    // if the server already exists, close it
-    if (wctx.getServer() != null) {
-      wctx.getServer().close();
+    // if the server exists, stop it
+    if (ctx.getServer() != null) {
+      ctx.getServer().stop();
     }
 
     // create the server and set the port
-    Javalin javalin = Javalin.create();
+    LOGGER.info("Starting webserver for port: {}", serverPort);
+    Undertow server = Undertow.builder()
+        .addHttpListener(serverPort, "0.0.0.0")
+        .setHandler(exchange -> handleRequest(exchange, world, ctx))
+        .build();
 
-    // do we need to configure tls?
-    if (!tlsCert.isEmpty() && !tlsKey.isEmpty()) {
-      MicroservicesMod.LOGGER.info("configuring with TLS");
-
-      SSLPlugin plugin = new SSLPlugin(conf -> {
-        conf.pemFromPath(tlsCert, tlsKey);
-        conf.securePort = serverPort;
-        conf.insecure = false;
-        conf.host = "0.0.0.0";
-      });
-
-      javalin.updateConfig(javalinConfig -> {
-        javalinConfig.plugins.register(plugin);
-      });
-    } else {
-      javalin.jettyServer().setServerPort(serverPort);
-      javalin.jettyServer().setServerHost("0.0.0.0");
-    }
-
-    // start the server async
+    // start the server async so we don't block the main thread
     service.submit(() -> {
-      // set the method
-      switch (method) {
-        case "GET":
-          javalin.get(path, ctx -> {
-            ctx.async(
-                serverTimeout,
-                () -> ctx.status(408).result("Request Timeout"),
-                () -> handleRequest(ctx, world, pos));
-          });
-          break;
-        case "POST":
-          javalin.post(path, ctx -> {
-            ctx.async(
-                serverTimeout,
-                () -> ctx.status(408).result("Request Timeout"),
-                () -> handleRequest(ctx, world, pos));
-          });
-          break;
-        case "PUT":
-          javalin.put(path, ctx -> {
-            ctx.async(
-                serverTimeout,
-                () -> ctx.status(408).result("Request Timeout"),
-                () -> handleRequest(ctx, world, pos));
-          });
-          break;
-        case "DELETE":
-          javalin.delete(path, ctx -> {
-            ctx.async(
-                serverTimeout,
-                () -> ctx.status(408).result("Request Timeout"),
-                () -> handleRequest(ctx, world, pos));
-          });
-      }
+      server.start();
     });
 
-    try {
-      // start the server
-      javalin.start();
-    } catch (JavalinBindException e) {
-      MicroservicesMod.LOGGER.error("unable to start server {}", e.getMessage());
+    // set the server
+    ctx.setServer(server);
+  }
+
+  public static void handleRequest(HttpServerExchange exchange, ServerWorld world, WebserverContext ctx) {
+    LOGGER.info("Received request {} {}", exchange.getRequestMethod(), exchange.getRequestPath());
+
+    // find the handler for this request
+    var handler = ctx.getHandlers().stream()
+        .filter(h -> h.getPath().equals(exchange.getRequestPath())
+            && h.getMethod().equals(exchange.getRequestMethod().toString()))
+        .findFirst();
+
+    // if we don't have a handler, return 404
+    if (handler.isEmpty()) {
+      LOGGER.error("No handler found for request {} {}", exchange.getRequestMethod(), exchange.getRequestPath());
+      exchange.setStatusCode(404);
+      exchange.getResponseSender().send("Not Found");
+      return;
     }
 
-    // set the server
-    wctx.setServer(javalin);
-    SERVERS.add(pos, wctx);
-  }
-
-  public static Context handleTimeout(Context ctx) {
-    return ctx.status(408).result("Request Timeout");
-  }
-
-  public static Context handleRequest(Context ctx, ServerWorld world, BlockPos pos) {
-    LOGGER.info("Received request {} {} {}", ctx.method(), ctx.path(), pos);
+    BlockPos pos = handler.get().getBlockPos();
 
     BlockState state = world.getBlockState(pos);
     state = state.with(DatabaseBlock.POWERED, true);
     world.setBlockState(pos, state, Block.NOTIFY_ALL);
 
     // schedule a block tick to update the block so it can disable
-    world.scheduleBlockTick(pos, MicroservicesMod.WEBSERVER_BLOCK, 40, TickPriority.NORMAL);
+    world.scheduleBlockTick(pos, ModBlocks.WEBSERVER_BLOCK, 40, TickPriority.NORMAL);
 
     // create a data item
-    ItemStack data = new ItemStack(MicroservicesMod.DATA_ITEM);
+    ItemStack data = new ItemStack(ModItems.DATA_ITEM);
 
     // create a dispense location
     Direction direction = world.getBlockState(pos).get(FACING);
-    BlockPointerImpl pointer = new BlockPointerImpl((ServerWorld) world, pos);
 
     // generate a request id
     String requestId = java.util.UUID.randomUUID().toString();
 
     // set the request properties
-    NbtCompound req = data.getOrCreateNbt();
+    NbtCompound req = data.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
     req.putString("request_id", requestId);
-    req.putString("request_path", ctx.path());
-    req.putString("request_method", ctx.method().toString());
-    req.putString("data", ctx.body());
-    data.setNbt(req);
+    req.putString("request_path", exchange.getRequestPath());
+    req.putString("request_method", exchange.getRequestMethod().toString());
+
+    // get the request body
+    exchange.getRequestReceiver().receiveFullString((e, m) -> {
+      req.putString("data", m);
+    });
+
+    data.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(req));
 
     // dispense the block
-    dispense(world, pointer, data, 1, direction);
+    dispense(world, pos, data, 1, direction);
 
+    // wait until we have a response or the timeout is reached
+    long timeout;
     try {
-      // wait until we have a response
+      timeout = Long.parseLong(handler.get().getTimeout());
+    } catch (NumberFormatException e) {
+      LOGGER.error("Invalid timeout value for handler {}, using default 5000ms", handler.get().getTimeout());
+      timeout = 5000;
+    }
+
+    // wait until we have a response or the timeout is reached
+    try {
+      long start = System.currentTimeMillis();
+      long end = start + timeout;
       LOGGER.info("Wait for response {}", requestId);
 
-      // loop until we have a response
-      while (true) {
+      while (System.currentTimeMillis() < end) {
+        // check if we have a response for this request id
         if (RESPONSES.containsKey(requestId)) {
           LOGGER.info("Sending response {}", requestId);
-          return ctx.result(RESPONSES.get(requestId));
+          exchange.getResponseSender().send(RESPONSES.get(requestId));
+          return;
         }
 
         Thread.sleep(10);
       }
+
+      // if we reach here, we timed out
+      throw new InterruptedException("Timeout waiting for response");
     } catch (InterruptedException e) {
-      LOGGER.error("Error waiting for response {}", e);
-      return ctx.status(408).result("Request Timeout");
+      LOGGER.error("Error waiting for response {}", e.getMessage());
+      exchange.setStatusCode(408);
+      exchange.getResponseSender().send("Request Timeout");
     }
   }
 
-  public static void dispense(World world, BlockPointerImpl pointer, ItemStack stack, int offset, Direction side) {
+  public static void dispense(World world, BlockPos pos, ItemStack stack, int offset, Direction side) {
     // get the opposite side so that it dispenses from the read of the block
     side = side.getOpposite();
 
-    double x = pointer.getX() + 0.7D * (double) side.getOffsetX();
-    double y = pointer.getY() + 0.7D * (double) side.getOffsetY();
-    double z = pointer.getZ() + 0.7D * (double) side.getOffsetZ();
+    double x = pos.getX() + 0.7D * (double) side.getOffsetX();
+    double y = pos.getY() + 0.7D * (double) side.getOffsetY();
+    double z = pos.getZ() + 0.7D * (double) side.getOffsetZ();
 
     if (side.getAxis() == Direction.Axis.Y) {
       y -= 0.425D;

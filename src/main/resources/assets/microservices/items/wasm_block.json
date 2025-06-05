@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type":"minecraft:model",
+    "model": "microservices:block/wasm_block"
+  }
+}

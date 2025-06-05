@@ -1,11 +1,8 @@
 package com.github.hashicraft.microservices.interpolation;
 
-import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import com.github.hashicraft.microservices.MicroservicesMod;
 
 public class Env {
   // This function attempts to replace the given value with a value from the
@@ -44,7 +41,7 @@ public class Env {
       // name could be an interpolated function
       name = Interpolate.getValue(name);
 
-      String envName = MicroservicesMod.MODID.toUpperCase(Locale.ENGLISH) + "_" + name;
+      String envName = "MICROSERVICES_" + name;
       String replacement = env.get(envName);
       if (replacement != null && !replacement.isEmpty()) {
         out = out.replace(expr, replacement);

@@ -1,6 +1,6 @@
 package com.github.hashicraft.microservices.blocks;
 
-import com.github.hashicraft.microservices.MicroservicesMod;
+import com.github.hashicraft.microservices.ModBlockEntities;
 import com.github.hashicraft.stateful.blocks.StatefulBlockEntity;
 import com.github.hashicraft.stateful.blocks.Syncable;
 
@@ -11,8 +11,8 @@ import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 
 public class WebserverBlockEntity extends StatefulBlockEntity implements WebserverInventory {
-
-  private final DefaultedList<ItemStack> items = DefaultedList.ofSize(1, ItemStack.EMPTY);
+  private final DefaultedList<ItemStack> items = DefaultedList.ofSize(1,
+      ItemStack.EMPTY);
 
   @Syncable
   public String result;
@@ -92,11 +92,11 @@ public class WebserverBlockEntity extends StatefulBlockEntity implements Webserv
   }
 
   public WebserverBlockEntity(BlockPos pos, BlockState state) {
-    super(MicroservicesMod.WEBSERVER_BLOCK_ENTITY, pos, state, null);
+    super(ModBlockEntities.WEBSERVER_BLOCK_ENTITY, pos, state, null);
   }
 
   public WebserverBlockEntity(BlockPos pos, BlockState state, Block parent) {
-    super(MicroservicesMod.WEBSERVER_BLOCK_ENTITY, pos, state, parent);
+    super(ModBlockEntities.WEBSERVER_BLOCK_ENTITY, pos, state, parent);
   }
 
   @Override

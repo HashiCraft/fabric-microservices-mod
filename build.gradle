@@ -1,6 +1,6 @@
 plugins {
   id 'java'
-  id 'com.github.johnrengelman.shadow' version '8.1.1'
+  //id 'com.github.johnrengelman.shadow' version '8.1.1'
 	id 'fabric-loom' version '1.10-SNAPSHOT'
 	id 'maven-publish'
 }
@@ -33,36 +33,24 @@ dependencies {
   modImplementation include("io.github.cottonmc:LibGui:${project.libgui_version}")
 	modImplementation include("com.github.hashicraft:fabric-stateful-mod:${stateful_version}")
 
-  implementation include("io.github.kawamuray.wasmtime:wasmtime-java:${wasmtime_version}")
+  // include the libraries  
+  include implementation("org.postgresql:postgresql:42.6.0");
+  include implementation("io.javalin:javalin:6.6.0");
+  include implementation("io.javalin.community.ssl:ssl-plugin:6.6.0");
+  include implementation("com.jayway.jsonpath:json-path:2.9.0");
+  include implementation("io.github.kawamuray.wasmtime:wasmtime-java:${wasmtime_version}")
 
-  // add the external dependencies to the fat jar
-  shadow("org.postgresql:postgresql:42.6.0");
-  shadow("io.javalin:javalin:5.6.3");
-  shadow("io.javalin.community.ssl:ssl-plugin:5.6.3");
-  shadow("com.jayway.jsonpath:json-path:2.9.0");
-  shadow("org.json:json:20240205");
+  // undertow webserver and jboss dependencies
+  include implementation("io.undertow:undertow-core:2.3.18.Final")
+  include implementation("org.jboss.threads:jboss-threads:3.5.0.Final")
+  include implementation("org.jboss.logging:jboss-logging:3.4.3.Final")
+  include implementation("org.jboss.xnio:xnio-api:3.8.16.Final")  
 
-  // some dependencies are not pulled in with shadow
-  implementation include('org.conscrypt:conscrypt-openjdk-uber:2.5.2');
-  implementation include('org.eclipse.jetty:jetty-alpn-java-server:11.0.17');
-  implementation include('org.eclipse.jetty:jetty-alpn-conscrypt-server:11.0.17');
-  implementation include('org.eclipse.jetty.http2:http2-server:11.0.17');
-
+  testImplementation("com.jayway.jsonpath:json-path:2.9.0")
+  testImplementation 'com.google.code.gson:gson:2.13.1'
+  
+  testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
   testImplementation('uk.org.webcompere:system-stubs-jupiter:2.1.6')
-  testImplementation("org.junit.jupiter:junit-jupiter-engine:5.7.2")
-}
-
-shadowJar {
-  configurations = [project.configurations.shadow]
-  exclude("META-INF")
-}
-
-remapJar {
-    // wait until the shadowJar is done
-    dependsOn(shadowJar)
-    mustRunAfter(shadowJar)
-    // Set the input jar for the task. Here use the shadow Jar that include the .class of the transitive dependency
-    inputFile = file(shadowJar.archivePath)
 }
 
 processResources {
@@ -81,11 +69,14 @@ tasks.withType(JavaCompile).configureEach {
 	it.options.encoding = "UTF-8"
 
 	// Minecraft 1.17 (21w19a) upwards uses Java 16.
-	it.options.release = 17
+	it.options.release = 21
 }
 
 java {
 	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
 }
 
 jar {
@@ -117,14 +108,6 @@ publishing {
 	}
 }
 
-task copyToLib(type: Copy) {
-  into "$buildDir/output/lib"
-  from configurations.runtimeClasspath
+test {
+	useJUnitPlatform()
 }
-
-//test {
-//	useJUnitPlatform()
-//	testLogging {
-//		events "passed", "skipped", "failed"
-//	}
-//}

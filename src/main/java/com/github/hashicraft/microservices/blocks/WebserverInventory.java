@@ -3,6 +3,8 @@ package com.github.hashicraft.microservices.blocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.Inventories;
 import net.minecraft.inventory.Inventory;
@@ -109,9 +111,9 @@ public interface WebserverInventory extends Inventory {
    */
   @Override
   default void setStack(int slot, ItemStack stack) {
-    NbtCompound data = stack.getOrCreateNbt();
-    String strData = data.getString("data");
-    String requestID = data.getString("request_id");
+    NbtCompound data = stack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+    String strData = data.getString("data", "");
+    String requestID = data.getString("request_id", "");
 
     LOGGER.info("Set response: {}, {}", requestID, strData);
 

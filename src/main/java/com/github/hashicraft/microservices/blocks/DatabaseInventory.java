@@ -3,6 +3,8 @@ package com.github.hashicraft.microservices.blocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.Inventories;
 import net.minecraft.inventory.Inventory;
@@ -121,9 +123,9 @@ public interface DatabaseInventory extends Inventory {
     BlockPos pos = getBlockPos();
     LOGGER.info("Set stack: {} for block: {}", stack.toString(), pos);
 
-    NbtCompound data = stack.getOrCreateNbt();
-    String strData = data.getString("data");
-    String requestID = data.getString("request_id");
+    NbtCompound data = stack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+    String strData = data.getString("data", "");
+    String requestID = data.getString("request_id", "");
 
     executeDBQuery(requestID, strData);
   }

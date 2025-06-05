@@ -1,21 +1,18 @@
 package com.github.hashicraft.microservices.blocks;
 
+import java.util.ArrayList;
+
 import com.google.gson.annotations.Expose;
 
-import io.javalin.Javalin;
+import io.undertow.Undertow;
+import net.minecraft.util.math.BlockPos;
 
 public class WebserverContext {
+  // reference to the server, this will not be serialized
+  private Undertow server;
+
   @Expose
   private String port;
-
-  @Expose
-  private String path;
-
-  @Expose
-  private String method;
-
-  @Expose
-  private String timeout;
 
   @Expose
   private String tlsCert;
@@ -23,48 +20,33 @@ public class WebserverContext {
   @Expose
   private String tlsKey;
 
-  // reference to the server, this will not be serialized
-  private Javalin server;
+  @Expose
+  private ArrayList<WebserverHandler> webserverHandlers;
+
+  public WebserverContext() {
+    this.webserverHandlers = new ArrayList<>();
+  }
+
+  public WebserverContext(String port) {
+    this.port = port;
+    this.webserverHandlers = new ArrayList<>();
+  }
 
   // getters and setters for private methods
+  public Undertow getServer() {
+    return this.server;
+  }
+
+  public void setServer(Undertow server) {
+    this.server = server;
+  }
+
   public String getPort() {
     return port;
   }
 
   public void setPort(String port) {
     this.port = port;
-  }
-
-  public String getPath() {
-    return this.path;
-  }
-
-  public void setPath(String path) {
-    this.path = path;
-  }
-
-  public String getMethod() {
-    return this.method;
-  }
-
-  public void setMethod(String method) {
-    this.method = method;
-  }
-
-  public String getTimeout() {
-    return this.timeout;
-  }
-
-  public void setTimeout(String timeout) {
-    this.timeout = timeout;
-  }
-
-  public Javalin getServer() {
-    return this.server;
-  }
-
-  public void setServer(Javalin server) {
-    this.server = server;
   }
 
   public String getTlsCert() {
@@ -83,6 +65,34 @@ public class WebserverContext {
     this.tlsKey = key;
   }
 
-  public WebserverContext() {
+  public ArrayList<WebserverHandler> getHandlers() {
+    return this.webserverHandlers;
+  }
+
+  public void setHandlers(ArrayList<WebserverHandler> handlers) {
+    this.webserverHandlers = handlers;
+  }
+
+  public boolean handlerExists(String path, String method) {
+    return this.webserverHandlers.stream()
+        .anyMatch(handler -> handler.getPath().equals(path) && handler.getMethod().equals(method));
+  }
+
+  public WebserverHandler getHandlerForPos(BlockPos pos) {
+    return this.webserverHandlers.stream()
+        .filter(handler -> handler.getBlockPos().equals(pos))
+        .findFirst()
+        .orElse(new WebserverHandler(pos));
+  }
+
+  public void removeHandler(BlockPos pos) {
+    this.webserverHandlers
+        .removeIf(h -> h.getBlockPos().equals(pos));
+  }
+
+  public void updateHandler(WebserverHandler handler) {
+    // remove or update the handler in the list
+    this.webserverHandlers.removeIf(h -> h.getBlockPos().equals(handler.getBlockPos()));
+    this.webserverHandlers.add(handler);
   }
 }

@@ -1,10 +1,9 @@
 package com.github.hashicraft.microservices.blocks;
 
-import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.Map.Entry;
+import java.util.List;
+import java.util.Optional;
 
 import org.apache.commons.io.IOUtils;
 
@@ -17,53 +16,64 @@ import java.nio.file.Paths;
 
 import com.google.gson.reflect.TypeToken;
 
+import net.minecraft.util.math.BlockPos;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import net.minecraft.util.math.BlockPos;
-
 public class Webservers {
 
-  private HashMap<String, WebserverContext> SERVERS = new HashMap<String, WebserverContext>();
+  private List<WebserverContext> webserverContexts;
 
-  // map iteration methods
-  public Set<Entry<BlockPos, WebserverContext>> entrySet() {
-    Set<Entry<BlockPos, WebserverContext>> entrySet = new HashSet<Entry<BlockPos, WebserverContext>>();
+  public Webservers() {
+    this.webserverContexts = new ArrayList<>();
+  }
 
-    for (Entry<String, WebserverContext> entry : SERVERS.entrySet()) {
-      BlockPos pos = deseriaBlockPos(entry.getKey());
-      entrySet.add(new AbstractMap.SimpleEntry<BlockPos, WebserverContext>(pos, entry.getValue()));
+  public List<WebserverContext> getContexts() {
+    return webserverContexts;
+  }
+
+  public void addOrUpdate(WebserverContext context) {
+    // if the context already exists, remove it
+    webserverContexts.removeIf(existingContext -> existingContext.getPort().equals(context.getPort()));
+    webserverContexts.add(context);
+  }
+
+  public boolean exists(String port, String path, String method) {
+    var ctx = webserverContexts.stream()
+        .filter(context -> context.getPort().equals(port))
+        .findFirst();
+
+    if (ctx.isPresent()) {
+      return false;
     }
 
-    return entrySet;
+    return ctx.get().handlerExists(path, method);
   }
 
-  public void add(BlockPos pos, WebserverContext context) {
-    SERVERS.put(serializeBlockPos(pos), context);
+  public WebserverContext getOrDefault(String port) {
+    Optional<WebserverContext> ctx = webserverContexts.stream()
+        .filter(context -> context.getPort().equals(port))
+        .findFirst();
+
+    if (ctx.isPresent()) {
+      return ctx.get();
+    } else {
+      var wsx = new WebserverContext(port);
+      this.addOrUpdate(wsx);
+      return wsx;
+    }
   }
 
-  public WebserverContext get(BlockPos pos) {
-    return SERVERS.get(serializeBlockPos(pos));
+  public Optional<WebserverContext> getAtLocation(BlockPos pos) {
+    return webserverContexts.stream()
+        .filter(context -> context.getHandlers().stream()
+            .anyMatch(handler -> handler.getBlockPos().equals(pos)))
+        .findFirst();
   }
 
-  public void remove(BlockPos pos) {
-    SERVERS.remove(serializeBlockPos(pos));
-  }
-
-  public boolean exists(BlockPos pos) {
-    return SERVERS.containsKey(serializeBlockPos(pos));
-  }
-
-  public String toJSON() {
-    Type typeObject = new TypeToken<HashMap<String, WebserverContext>>() {
-    }.getType();
-
-    Gson gson = new GsonBuilder()
-        .setPrettyPrinting()
-        .excludeFieldsWithoutExposeAnnotation()
-        .create();
-
-    return gson.toJson(this.SERVERS, typeObject);
+  public void removeAtLocation(BlockPos pos) {
+    webserverContexts.forEach(context -> context.removeHandler(pos));
   }
 
   public void writeToConfig() throws IOException {
@@ -85,31 +95,31 @@ public class Webservers {
     }
   }
 
+  public String toJSON() {
+    Type typeObject = new TypeToken<List<WebserverContext>>() {
+    }.getType();
+
+    Gson gson = new GsonBuilder()
+        .setPrettyPrinting()
+        .excludeFieldsWithoutExposeAnnotation()
+        .create();
+
+    return gson.toJson(this.webserverContexts, typeObject);
+  }
+
   public static Webservers fromJSON(String json) {
-    Type typeObject = new TypeToken<HashMap<String, WebserverContext>>() {
+    Type typeObject = new TypeToken<List<WebserverContext>>() {
     }.getType();
 
     Gson gson = new GsonBuilder()
         .excludeFieldsWithoutExposeAnnotation()
         .create();
 
-    HashMap<String, WebserverContext> map = gson.fromJson(json, typeObject);
+    List<WebserverContext> ar = gson.fromJson(json, typeObject);
     var ws = new Webservers();
-    ws.SERVERS = map;
+    ws.webserverContexts = ar;
 
     return ws;
   }
 
-  public static String serializeBlockPos(BlockPos pos) {
-    return String.format("%s_%s_%s", pos.getX(), pos.getY(), pos.getZ());
-  }
-
-  public static BlockPos deseriaBlockPos(String pos) {
-    String[] p = pos.split("_", -1);
-
-    return new BlockPos(
-        Integer.parseInt(p[0]),
-        Integer.parseInt(p[1]),
-        Integer.parseInt(p[2]));
-  }
 }

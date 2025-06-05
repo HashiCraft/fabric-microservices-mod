@@ -1,5 +1,6 @@
 package com.github.hashicraft.microservices.block;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -7,6 +8,7 @@ import java.io.IOException;
 import org.junit.jupiter.api.Test;
 
 import com.github.hashicraft.microservices.blocks.WebserverContext;
+import com.github.hashicraft.microservices.blocks.WebserverHandler;
 import com.github.hashicraft.microservices.blocks.Webservers;
 import net.minecraft.util.math.BlockPos;
 
@@ -18,43 +20,54 @@ public class WebServersTests {
 
     WebserverContext context = new WebserverContext();
     context.setPort("8080");
-    context.setPath("/test");
-    context.setMethod("GET");
     context.setTlsCert("./cert.pem");
     context.setTlsKey("./key.pem");
 
-    servers.add(new BlockPos(1, 2, 3), context);
+    // add a handler to the context
+    context.updateHandler(new WebserverHandler(new BlockPos(1, 2, 3), "/test", "GET", "5000"));
+
+    // add the context to the servers
+    servers.addOrUpdate(context);
 
     String json = servers.toJSON();
 
-    assertContains(json, "\"serverPort\": \"8080\"");
+    System.out.println("Serialized Webservers: " + json);
   }
 
   @Test
   public void deserializesDataFromJSON() {
     String json = """
-        {
-          "BlockPos{x\u003d1, y\u003d2, z\u003d3}": {
-            "serverPort": "8080",
-            "serverPath": "/test",
-            "serverMethod": "GET"
-            "tlsCert": "./cert.pem"
-            "tlsKey": "./key.pem"
+        [
+          {
+            "port": "8080",
+            "tlsCert": "./cert.pem",
+            "tlsKey": "./key.pem",
+            "webserverHandlers": [
+              {
+                "blockPos": "1_2_3",
+                "path": "/test",
+                "method": "GET",
+                "timeout": "5000"
+              }
+            ]
           }
-        }""";
+        ]""";
 
     Webservers servers = Webservers.fromJSON(json);
+    System.out.println("Deserialized Webservers: " + servers);
 
-    WebserverContext context = servers.get(new BlockPos(1, 2, 3));
+    WebserverContext context = servers.getOrDefault("8080");
+    assertNotNull(context.getTlsCert());
+    assertNotNull(context.getTlsKey());
+    assertTrue(context.getTlsCert().contains("./cert.pem"));
+    assertTrue(context.getTlsKey().contains("./key.pem"));
 
-    assertContains(context.getPort(), "8080");
-    assertContains(context.getPath(), "/test");
-    assertContains(context.getMethod(), "GET");
-    assertContains(context.getTlsCert(), "./cert.pem");
-    assertContains(context.getTlsKey(), "./key.pem");
-  }
-
-  public void assertContains(String string, String subString) {
-    assertTrue(string.contains(subString));
+    WebserverHandler handler = context.getHandlerForPos(new BlockPos(1, 2, 3));
+    assertNotNull(handler.getPath());
+    assertNotNull(handler.getMethod());
+    assertNotNull(handler.getTimeout());
+    assertTrue(handler.getPath().contains("/test"));
+    assertTrue(handler.getMethod().contains("GET"));
+    assertTrue(handler.getTimeout().contains("5000"));
   }
 }

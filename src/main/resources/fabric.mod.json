@@ -25,10 +25,6 @@
       "com.github.hashicraft.microservices.MicroservicesModClient"
     ]
   },
-  "mixins": [
-    "microservices.mixins.json"
-  ],
-
   "depends": {
     "fabricloader": ">=0.16.0",
     "fabric": "*",

@@ -2,21 +2,23 @@ package com.github.hashicraft.microservices.blocks;
 
 import java.util.ArrayList;
 
-import com.github.hashicraft.microservices.MicroservicesMod;
+import com.github.hashicraft.microservices.ModBlockEntities;
+import com.github.hashicraft.microservices.ModBlocks;
+import com.github.hashicraft.microservices.ModItems;
 import com.github.hashicraft.microservices.wasm.WasmRuntime;
 import com.github.hashicraft.stateful.blocks.StatefulBlockEntity;
 import com.github.hashicraft.stateful.blocks.Syncable;
 
-import net.minecraft.state.property.DirectionProperty;
+import net.minecraft.state.property.EnumProperty;
 import net.minecraft.state.property.Properties;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.collection.DefaultedList;
-import net.minecraft.util.math.BlockPointerImpl;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -27,9 +29,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-public class WasmBlockEntity extends StatefulBlockEntity implements WasmInventory {
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-  public static final DirectionProperty FACING = Properties.HORIZONTAL_FACING;
+public class WasmBlockEntity extends StatefulBlockEntity implements WasmInventory {
+  private static final Logger LOGGER = LoggerFactory.getLogger(WasmBlockEntity.class);
+
+  public static final EnumProperty<Direction> FACING = Properties.HORIZONTAL_FACING;
 
   private final DefaultedList<ItemStack> items = DefaultedList.ofSize(1, ItemStack.EMPTY);
 
@@ -72,12 +78,12 @@ public class WasmBlockEntity extends StatefulBlockEntity implements WasmInventor
   }
 
   public WasmBlockEntity(BlockPos pos, BlockState state) {
-    super(MicroservicesMod.WASM_BLOCK_ENTITY, pos, state, null);
+    super(ModBlockEntities.WASM_BLOCK_ENTITY, pos, state, null);
     this.pos = pos;
   }
 
   public WasmBlockEntity(BlockPos pos, BlockState state, Block parent) {
-    super(MicroservicesMod.WASM_BLOCK_ENTITY, pos, state, parent);
+    super(ModBlockEntities.WASM_BLOCK_ENTITY, pos, state, parent);
     this.pos = pos;
   }
 
@@ -125,22 +131,21 @@ public class WasmBlockEntity extends StatefulBlockEntity implements WasmInventor
         world.setBlockState(pos, state, Block.NOTIFY_ALL);
 
         // schedule a block tick to update the block so it can disable
-        world.scheduleBlockTick(pos, MicroservicesMod.WASM_BLOCK, 40, TickPriority.NORMAL);
+        world.scheduleBlockTick(pos, ModBlocks.WASM_BLOCK, 40, TickPriority.NORMAL);
 
         // create a data item
-        ItemStack card = new ItemStack(MicroservicesMod.DATA_ITEM);
+        ItemStack card = new ItemStack(ModItems.DATA_ITEM);
 
         // create a dispense location
         Direction direction = world.getBlockState(pos).get(FACING);
-        BlockPointerImpl pointer = new BlockPointerImpl((ServerWorld) world, pos);
 
-        NbtCompound nbt = card.getOrCreateNbt();
+        NbtCompound nbt = card.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
         nbt.putString("request_id", requestID);
         nbt.putString("data", fnResult.toString());
-        card.setNbt(nbt);
+        card.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
 
         // dispense the block
-        dispense(world, pointer, card, 1, direction);
+        dispense(world, pos, card, 1, direction);
       } catch (Exception e) {
         LOGGER.error("Error executing Wasm function: {}", e.getMessage());
         e.printStackTrace();
@@ -150,13 +155,13 @@ public class WasmBlockEntity extends StatefulBlockEntity implements WasmInventor
     });
   }
 
-  private void dispense(World world, BlockPointerImpl pointer, ItemStack stack, int offset, Direction side) {
+  private void dispense(World world, BlockPos pos, ItemStack stack, int offset, Direction side) {
     // get the opposite side so that it dispenses from the read of the block
     side = side.getOpposite();
 
-    double x = pointer.getX() + 0.7D * (double) side.getOffsetX();
-    double y = pointer.getY() + 0.7D * (double) side.getOffsetY();
-    double z = pointer.getZ() + 0.7D * (double) side.getOffsetZ();
+    double x = pos.getX() + 0.7D * (double) side.getOffsetX();
+    double y = pos.getY() + 0.7D * (double) side.getOffsetY();
+    double z = pos.getZ() + 0.7D * (double) side.getOffsetZ();
 
     if (side.getAxis() == Direction.Axis.Y) {
       y -= 0.425D;
