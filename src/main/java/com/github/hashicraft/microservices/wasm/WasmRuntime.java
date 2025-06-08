@@ -168,9 +168,12 @@ public class WasmRuntime {
     T returnVal;
     // if the output type is a string, attempt to read this from the modules memory
     if (returnType == String.class) {
-      returnVal = (T) getStringFromMemory(result, "", linker);
+      String strResult = getStringFromMemory(result, "", linker);
+      returnVal = returnType.cast(strResult);
+    } else if (returnType == Integer.class) {
+      returnVal = returnType.cast(result);
     } else {
-      returnVal = (T) result;
+      throw new IllegalArgumentException("Unsupported return type: " + returnType);
     }
 
     // close and free up resources

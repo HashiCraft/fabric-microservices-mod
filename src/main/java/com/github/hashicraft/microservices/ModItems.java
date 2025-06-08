@@ -3,6 +3,7 @@ package com.github.hashicraft.microservices;
 import java.util.function.Function;
 
 import com.github.hashicraft.microservices.items.DataItem;
+import com.github.hashicraft.microservices.items.ErrorItem;
 
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.minecraft.component.DataComponentTypes;
@@ -26,8 +27,26 @@ public class ModItems {
       DataItem::new,
       new Item.Settings());
 
+  public static final Item ERROR_ITEM = register(
+      "error_item",
+      ErrorItem::new,
+      new Item.Settings());
+
   public static void initializeClient() {
     ItemTooltipCallback.EVENT.register((itemStack, tooltipContext, tooltipType, list) -> {
+      if (itemStack.isOf(DATA_ITEM)) {
+        NbtCompound item = itemStack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
+
+        String id = item.getString("request_id", "");
+        String data = item.getString("data", "");
+
+        list.add(Text.literal("Request ID").setStyle(Style.EMPTY.withColor(Formatting.WHITE)));
+        list.add(Text.literal(id).setStyle(Style.EMPTY.withColor(Formatting.GRAY)));
+        list.add(Text.literal(""));
+        list.add(Text.literal("Data").setStyle(Style.EMPTY.withColor(Formatting.WHITE)));
+        list.add(Text.literal(data).setStyle(Style.EMPTY.withColor(Formatting.GRAY)));
+      }
+
       if (itemStack.isOf(DATA_ITEM)) {
         NbtCompound item = itemStack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
 

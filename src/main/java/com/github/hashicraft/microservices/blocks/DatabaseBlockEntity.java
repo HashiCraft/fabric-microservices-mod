@@ -153,7 +153,6 @@ public class DatabaseBlockEntity extends StatefulBlockEntity implements Database
       try {
         String result = executeSQLStatement();
 
-        this.result = "success";
         // everything is ok emit redstone power
         BlockState state = world.getBlockState(pos);
         state = state.with(DatabaseBlock.POWERED, true);

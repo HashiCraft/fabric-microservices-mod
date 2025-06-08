@@ -35,8 +35,6 @@ dependencies {
 
   // include the libraries  
   include implementation("org.postgresql:postgresql:42.6.0");
-  include implementation("io.javalin:javalin:6.6.0");
-  include implementation("io.javalin.community.ssl:ssl-plugin:6.6.0");
   include implementation("com.jayway.jsonpath:json-path:2.9.0");
   include implementation("io.github.kawamuray.wasmtime:wasmtime-java:${wasmtime_version}")
 
@@ -46,11 +44,16 @@ dependencies {
   include implementation("org.jboss.logging:jboss-logging:3.4.3.Final")
   include implementation("org.jboss.xnio:xnio-api:3.8.16.Final")  
 
+
+	testRuntimeOnly('org.junit.platform:junit-platform-launcher')
+	testImplementation(platform('org.junit:junit-bom:5.13.1'))
+  testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.13.0'
+  testImplementation("uk.org.webcompere:system-stubs-jupiter:2.1.8")
+  testImplementation("org.junit.jupiter:junit-jupiter-api:5.13.0")
+  testImplementation("uk.org.webcompere:system-stubs-core:2.1.8")
+  
   testImplementation("com.jayway.jsonpath:json-path:2.9.0")
   testImplementation 'com.google.code.gson:gson:2.13.1'
-  
-  testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
-  testImplementation('uk.org.webcompere:system-stubs-jupiter:2.1.6')
 }
 
 processResources {

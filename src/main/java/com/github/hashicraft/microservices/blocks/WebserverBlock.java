@@ -316,6 +316,16 @@ public class WebserverBlock extends StatefulBlock {
     req.putString("request_path", exchange.getRequestPath());
     req.putString("request_method", exchange.getRequestMethod().toString());
 
+    if (!exchange.getQueryParameters().isEmpty()) {
+      NbtCompound queryMap = new NbtCompound();
+      exchange.getQueryParameters().forEach((key, values) -> {
+        if (!values.isEmpty()) {
+          queryMap.putString(key, values.getFirst());
+        }
+      });
+      req.put("request_query", queryMap);
+    }
+
     // get the request body
     exchange.getRequestReceiver().receiveFullString((e, m) -> {
       req.putString("data", m);

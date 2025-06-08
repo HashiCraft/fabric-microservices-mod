@@ -3,6 +3,8 @@ package com.github.hashicraft.microservices.interpolation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import net.minecraft.nbt.NbtCompound;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -11,8 +13,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import uk.org.webcompere.systemstubs.environment.EnvironmentVariables;
-import uk.org.webcompere.systemstubs.jupiter.SystemStub;
 import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
+import uk.org.webcompere.systemstubs.jupiter.SystemStub;
 
 @ExtendWith(SystemStubsExtension.class)
 public class InterpolateTests {
@@ -86,5 +88,52 @@ public class InterpolateTests {
     String result = Interpolate.getValue("Hello, ${{json_path('${{file('" + path.toString() + "')}}','$.name')}}!");
 
     assertEquals("Hello, Nic!", result);
+  }
+
+  @Test
+  void requestPathIsInterpolated() throws InterpolationNotFoundError {
+    NbtCompound data = new NbtCompound();
+    data.putString("request_path", "/abc/123");
+
+    String result = Interpolate.getValue("request_path: ${{request_path()}}", data);
+
+    // Assuming the request_path function returns "Nic" for the given URL
+    assertEquals("request_path: /abc/123", result);
+  }
+
+  @Test
+  void requestMethodIsInterpolated() throws InterpolationNotFoundError {
+    NbtCompound data = new NbtCompound();
+    data.putString("request_method", "GET");
+
+    String result = Interpolate.getValue("request_method: ${{request_method()}}", data);
+
+    // Assuming the request_path function returns "Nic" for the given URL
+    assertEquals("request_method: GET", result);
+  }
+
+  @Test
+  void requestDataIsInterpolated() throws InterpolationNotFoundError {
+    NbtCompound data = new NbtCompound();
+    data.putString("data", "hello, this is some data");
+
+    String result = Interpolate.getValue("request_data: ${{request_data()}}", data);
+
+    // Assuming the request_path function returns "Nic" for the given URL
+    assertEquals("request_data: hello, this is some data", result);
+  }
+
+  @Test
+  void requestQueryIsInterpolated() throws InterpolationNotFoundError {
+    NbtCompound query = new NbtCompound();
+    query.putString("testing", "hello, this is some data");
+
+    NbtCompound data = new NbtCompound();
+    data.put("request_query", query);
+
+    String result = Interpolate.getValue("request_query: ${{request_query(\"testing\")}}", data);
+
+    // Assuming the request_path function returns "Nic" for the given URL
+    assertEquals("request_query: hello, this is some data", result);
   }
 }
