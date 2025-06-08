@@ -63,7 +63,7 @@ public class WebserverBlock extends StatefulBlock {
   private static Boolean initialized = false;
   private static final Object INIT_LOCK = new Object();
 
-  public static final HashMap<String, String> RESPONSES = new HashMap<String, String>();
+  public static final HashMap<String, WebServerResponse> RESPONSES = new HashMap<String, WebServerResponse>();
 
   private static ExecutorService service = new ThreadPoolExecutor(4, 1000, 0L, TimeUnit.MILLISECONDS,
       new LinkedBlockingQueue<Runnable>());
@@ -355,7 +355,9 @@ public class WebserverBlock extends StatefulBlock {
         // check if we have a response for this request id
         if (RESPONSES.containsKey(requestId)) {
           LOGGER.info("Sending response {}", requestId);
-          exchange.getResponseSender().send(RESPONSES.get(requestId));
+          var response = RESPONSES.get(requestId);
+          exchange.setStatusCode(response.getStatusCode());
+          exchange.getResponseSender().send(response.getData());
           return;
         }
 

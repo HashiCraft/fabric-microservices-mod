@@ -3,6 +3,8 @@ package com.github.hashicraft.microservices.blocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.hashicraft.microservices.ModItems;
+
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.player.PlayerEntity;
@@ -117,7 +119,13 @@ public interface WebserverInventory extends Inventory {
 
     LOGGER.info("Set response: {}, {}", requestID, strData);
 
-    WebserverBlock.RESPONSES.put(requestID, strData);
+    int errorCode = 200;
+    if (stack.isOf(ModItems.ERROR_ITEM)) {
+      errorCode = 500;
+    }
+
+    var response = new WebServerResponse(strData, errorCode);
+    WebserverBlock.RESPONSES.put(requestID, response);
   }
 
   /**

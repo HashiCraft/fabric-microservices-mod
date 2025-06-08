@@ -33,6 +33,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemConvertible;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.state.property.EnumProperty;
@@ -153,32 +154,41 @@ public class DatabaseBlockEntity extends StatefulBlockEntity implements Database
       try {
         String result = executeSQLStatement();
 
-        // everything is ok emit redstone power
-        BlockState state = world.getBlockState(pos);
-        state = state.with(DatabaseBlock.POWERED, true);
-        world.setBlockState(pos, state, Block.NOTIFY_ALL);
-
-        // schedule a block tick to update the block so it can disable
-        world.scheduleBlockTick(pos, ModBlocks.DATABASE_BLOCK, 40, TickPriority.NORMAL);
-
         // create a data item
-        ItemStack card = new ItemStack(ModItems.DATA_ITEM);
-        NbtComponent nbtComponent = card.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT);
-        NbtCompound nbt = nbtComponent.copyNbt();
-        nbt.putString("request_id", requestID);
-        nbt.putString("data", result);
-        card.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+        ItemStack dataItem = createItemStack(requestID, result, ModItems.DATA_ITEM);
 
         // create a dispense location and dispense the item
         Direction direction = world.getBlockState(pos).get(FACING);
-        dispense(world, pos, card, 1, direction);
+        dispense(world, pos, dataItem, 1, direction);
       } catch (SQLException e) {
         LOGGER.error("Error executing SQL statement {}", e);
-        this.result = "error";
+        ItemStack errorItem = createItemStack(requestID, e.getMessage(), ModItems.ERROR_ITEM);
+
+        Direction direction = world.getBlockState(pos).get(FACING);
+        dispense(world, pos, errorItem, 1, direction);
       }
+
+      // everything is ok emit redstone power
+      BlockState state = world.getBlockState(pos);
+      state = state.with(DatabaseBlock.POWERED, true);
+      world.setBlockState(pos, state, Block.NOTIFY_ALL);
+
+      // schedule a block tick to update the block so it can disable
+      world.scheduleBlockTick(pos, ModBlocks.DATABASE_BLOCK, 40, TickPriority.NORMAL);
 
       this.markForUpdate();
     });
+  }
+
+  private ItemStack createItemStack(String requestID, String data, ItemConvertible item) {
+    ItemStack card = new ItemStack(item);
+    NbtComponent nbtComponent = card.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT);
+    NbtCompound nbt = nbtComponent.copyNbt();
+    nbt.putString("request_id", requestID);
+    nbt.putString("data", data);
+    card.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+
+    return card;
   }
 
   private String executeSQLStatement() throws SQLException {
