@@ -39,6 +39,7 @@ dependencies {
 
   // undertow webserver and jboss dependencies
   implementation("io.undertow:undertow-core:2.3.18.Final")
+  include implementation("org.nanohttpd:nanohttpd:2.3.1")
   //include implementation("org.jboss.xnio:xnio-api:3.8.16.Final")  
   //include runtimeOnly("org.jboss.xnio:xnio-nio:3.8.16.Final")  
   //include implementation("org.jboss.threads:jboss-threads:3.5.0.Final")

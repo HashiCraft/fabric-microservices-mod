@@ -16,6 +16,7 @@ import com.github.hashicraft.microservices.ModItems;
 import com.github.hashicraft.microservices.events.WebserverBlockClicked;
 import com.github.hashicraft.microservices.events.WebserverBlockRemovedPacket;
 import com.github.hashicraft.microservices.events.WebserverBlockUpdatedPacket;
+import com.github.hashicraft.microservices.http.NanoHTTP;
 import com.github.hashicraft.microservices.interpolation.Interpolate;
 import com.github.hashicraft.stateful.blocks.StatefulBlock;
 
@@ -201,7 +202,7 @@ public class WebserverBlock extends StatefulBlock {
     // if there are no more handlers for this server, remove it
     if (server.get().getHandlers().isEmpty()) {
       MicroservicesMod.LOGGER.info("Removed server at {}", pos);
-      server.get().getServer().stop();
+      server.get().getServer().stopServer();
       SERVERS.removeAtLocation(pos);
     }
   }
@@ -245,34 +246,37 @@ public class WebserverBlock extends StatefulBlock {
   }
 
   public static void startServer(ServerWorld world, WebserverContext ctx) {
-    // get the port as an integer
-    int serverPort = 0;
-    try {
-      serverPort = Integer.parseInt(ctx.getPort());
-    } catch (NumberFormatException e) {
-      MicroservicesMod.LOGGER.error("invalid port {}, unable to start server, error:{}", ctx.getPort(), e);
-      return;
-    }
 
     // if the server exists, stop it
     if (ctx.getServer() != null) {
-      ctx.getServer().stop();
+      ctx.getServer().stopServer();
     }
 
     // create the server and set the port
-    LOGGER.info("Starting webserver for port: {}", serverPort);
-    Undertow server = Undertow.builder()
-        .addHttpListener(serverPort, "0.0.0.0")
-        .setHandler(exchange -> handleRequest(exchange, world, ctx))
-        .build();
+    // NanoHTTP nanoHTTP = new NanoHTTP(serverPort, ctx.getTlsCert(),
+    // ctx.getTlsKey());
+    // Undertow server = Undertow.builder()
+    // .addHttpListener(serverPort, "0.0.0.0")
+    // .setHandler(exchange -> handleRequest(exchange, world, ctx))
+    // .build();
 
     // start the server async so we don't block the main thread
-    // service.submit(() -> {
-    server.start();
-    // });
+    service.submit(() -> {
+      try {
+        int serverPort = Integer.parseInt(ctx.getPort());
+        LOGGER.info("Starting webserver for port: {}", serverPort);
 
-    // set the server
-    ctx.setServer(server);
+        NanoHTTP server = new NanoHTTP(serverPort, world, ctx);
+        ctx.setServer(server);
+        server.startServer();
+
+      } catch (IOException e) {
+        e.printStackTrace();
+      } catch (NumberFormatException e) {
+        MicroservicesMod.LOGGER.error("invalid port {}, unable to start server, error:{}", ctx.getPort(), e);
+        return;
+      }
+    });
   }
 
   public static void handleRequest(HttpServerExchange exchange, ServerWorld world, WebserverContext ctx) {
@@ -291,109 +295,5 @@ public class WebserverBlock extends StatefulBlock {
       exchange.getResponseSender().send("Not Found");
       return;
     }
-
-    BlockPos pos = handler.get().getBlockPos();
-
-    BlockState state = world.getBlockState(pos);
-    state = state.with(DatabaseBlock.POWERED, true);
-    world.setBlockState(pos, state, Block.NOTIFY_ALL);
-
-    // schedule a block tick to update the block so it can disable
-    world.scheduleBlockTick(pos, ModBlocks.WEBSERVER_BLOCK, 40, TickPriority.NORMAL);
-
-    // create a data item
-    ItemStack data = new ItemStack(ModItems.DATA_ITEM);
-
-    // create a dispense location
-    Direction direction = world.getBlockState(pos).get(FACING);
-
-    // generate a request id
-    String requestId = java.util.UUID.randomUUID().toString();
-
-    // set the request properties
-    NbtCompound req = data.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
-    req.putString("request_id", requestId);
-    req.putString("request_path", exchange.getRequestPath());
-    req.putString("request_method", exchange.getRequestMethod().toString());
-
-    if (!exchange.getQueryParameters().isEmpty()) {
-      NbtCompound queryMap = new NbtCompound();
-      exchange.getQueryParameters().forEach((key, values) -> {
-        if (!values.isEmpty()) {
-          queryMap.putString(key, values.getFirst());
-        }
-      });
-      req.put("request_query", queryMap);
-    }
-
-    // get the request body
-    exchange.getRequestReceiver().receiveFullString((e, m) -> {
-      req.putString("data", m);
-    });
-
-    data.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(req));
-
-    // dispense the block
-    dispense(world, pos, data, 1, direction);
-
-    // wait until we have a response or the timeout is reached
-    long timeout;
-    try {
-      timeout = Long.parseLong(handler.get().getTimeout());
-    } catch (NumberFormatException e) {
-      LOGGER.error("Invalid timeout value for handler {}, using default 5000ms", handler.get().getTimeout());
-      timeout = 5000;
-    }
-
-    // wait until we have a response or the timeout is reached
-    try {
-      long start = System.currentTimeMillis();
-      long end = start + timeout;
-      LOGGER.info("Wait for response {}", requestId);
-
-      while (System.currentTimeMillis() < end) {
-        // check if we have a response for this request id
-        if (RESPONSES.containsKey(requestId)) {
-          LOGGER.info("Sending response {}", requestId);
-          var response = RESPONSES.get(requestId);
-          exchange.setStatusCode(response.getStatusCode());
-          exchange.getResponseSender().send(response.getData());
-          return;
-        }
-
-        Thread.sleep(10);
-      }
-
-      // if we reach here, we timed out
-      throw new InterruptedException("Timeout waiting for response");
-    } catch (InterruptedException e) {
-      LOGGER.error("Error waiting for response {}", e.getMessage());
-      exchange.setStatusCode(408);
-      exchange.getResponseSender().send("Request Timeout");
-    }
-  }
-
-  public static void dispense(World world, BlockPos pos, ItemStack stack, int offset, Direction side) {
-    // get the opposite side so that it dispenses from the read of the block
-    side = side.getOpposite();
-
-    double x = pos.getX() + 0.7D * (double) side.getOffsetX();
-    double y = pos.getY() + 0.7D * (double) side.getOffsetY();
-    double z = pos.getZ() + 0.7D * (double) side.getOffsetZ();
-
-    if (side.getAxis() == Direction.Axis.Y) {
-      y -= 0.425D;
-    } else {
-      y -= 0.45625D;
-    }
-
-    ItemEntity entity = new ItemEntity(world, x, y, z, stack);
-
-    double g = world.random.nextDouble() * 0.1D + 0.2D;
-    entity.setVelocity(
-        world.random.nextGaussian() * 0.007499999832361937D * (double) offset + (double) side.getOffsetX() * g,
-        world.random.nextGaussian() * 0.007499999832361937D * (double) offset + 0.20000000298023224D,
-        world.random.nextGaussian() * 0.007499999832361937D * (double) offset + (double) side.getOffsetZ() * g);
-    world.spawnEntity(entity);
   }
 }

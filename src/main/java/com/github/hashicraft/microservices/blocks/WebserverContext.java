@@ -2,6 +2,7 @@ package com.github.hashicraft.microservices.blocks;
 
 import java.util.ArrayList;
 
+import com.github.hashicraft.microservices.http.NanoHTTP;
 import com.google.gson.annotations.Expose;
 
 import io.undertow.Undertow;
@@ -9,7 +10,7 @@ import net.minecraft.util.math.BlockPos;
 
 public class WebserverContext {
   // reference to the server, this will not be serialized
-  private Undertow server;
+  private NanoHTTP server;
 
   @Expose
   private String port;
@@ -33,11 +34,11 @@ public class WebserverContext {
   }
 
   // getters and setters for private methods
-  public Undertow getServer() {
+  public NanoHTTP getServer() {
     return this.server;
   }
 
-  public void setServer(Undertow server) {
+  public void setServer(NanoHTTP server) {
     this.server = server;
   }
 
