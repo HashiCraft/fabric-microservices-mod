@@ -24,9 +24,11 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.state.property.EnumProperty;
+import net.minecraft.state.property.IntProperty;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.hit.BlockHitResult;
+
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
@@ -38,10 +40,12 @@ public class WasmBlock extends StatefulBlock {
 
   public static final EnumProperty<Direction> FACING = Properties.HORIZONTAL_FACING;
   public static final BooleanProperty POWERED = Properties.POWERED;
+  public static final IntProperty POWER = Properties.POWER;
 
   public WasmBlock(Settings settings) {
     super(settings);
     setDefaultState(getStateManager().getDefaultState().with(POWERED, false));
+    setDefaultState(getStateManager().getDefaultState().with(POWER, 15));
   }
 
   @Override
@@ -71,7 +75,7 @@ public class WasmBlock extends StatefulBlock {
 
   @Override
   public int getWeakRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-    return state.get(POWERED) != false ? 15 : 0;
+    return state.get(POWERED) != false ? state.get(Properties.POWER) : 0;
   }
 
   @Override
@@ -83,6 +87,7 @@ public class WasmBlock extends StatefulBlock {
   protected void appendProperties(StateManager.Builder<Block, BlockState> stateManager) {
     stateManager.add(FACING);
     stateManager.add(POWERED);
+    stateManager.add(POWER);
   }
 
   @Override
@@ -99,7 +104,8 @@ public class WasmBlock extends StatefulBlock {
   // called after the wasm function is executed to disable the power output
   @Override
   public void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-    MicroservicesMod.LOGGER.info("scheduledTick {}", pos);
+    MicroservicesMod.LOGGER.info("scheduledTick {} {}", pos, state.get(POWER));
+
     if (!state.get(POWERED).booleanValue()) {
       return;
     }

@@ -31,7 +31,7 @@ public interface DatabaseInventory extends Inventory {
 
   BlockPos getBlockPos();
 
-  void executeDBQuery(String requestID, String data);
+  void executeDBQuery(String requestID, String data, NbtCompound nbt);
 
   /**
    * Creates an inventory from the item list.
@@ -127,7 +127,13 @@ public interface DatabaseInventory extends Inventory {
     String strData = data.getString("data", "");
     String requestID = data.getString("request_id", "");
 
-    executeDBQuery(requestID, strData);
+    LOGGER.info("Log query");
+    NbtCompound query = data.getCompoundOrEmpty("request_query");
+    query.forEach((key, value) -> {
+      LOGGER.info("Query: {} = {}", key, value);
+    });
+
+    executeDBQuery(requestID, strData, data);
   }
 
   /**

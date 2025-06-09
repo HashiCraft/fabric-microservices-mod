@@ -6,6 +6,7 @@ import com.github.hashicraft.microservices.items.DataItem;
 import com.github.hashicraft.microservices.items.ErrorItem;
 
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
+import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.item.Item;
@@ -71,6 +72,11 @@ public class ModItems {
 
     // Register the item.
     Registry.register(Registries.ITEM, itemKey, item);
+
+    // Register the item in the mod's item group.
+    ItemGroupEvents.modifyEntriesEvent(ModBlocks.ITEM_GROUP).register(content -> {
+      content.add(item);
+    });
 
     return item;
   }

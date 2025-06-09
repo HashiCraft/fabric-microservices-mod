@@ -9,7 +9,9 @@ import com.github.hashicraft.microservices.wasm.WasmRuntime;
 import com.github.hashicraft.stateful.blocks.StatefulBlockEntity;
 import com.github.hashicraft.stateful.blocks.Syncable;
 
+import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.state.property.EnumProperty;
+import net.minecraft.state.property.IntProperty;
 import net.minecraft.state.property.Properties;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -36,6 +38,8 @@ public class WasmBlockEntity extends StatefulBlockEntity implements WasmInventor
   private static final Logger LOGGER = LoggerFactory.getLogger(WasmBlockEntity.class);
 
   public static final EnumProperty<Direction> FACING = Properties.HORIZONTAL_FACING;
+  public static final BooleanProperty POWERED = Properties.POWERED;
+  public static final IntProperty POWER = Properties.POWER;
 
   private final DefaultedList<ItemStack> items = DefaultedList.ofSize(1, ItemStack.EMPTY);
 
@@ -52,6 +56,17 @@ public class WasmBlockEntity extends StatefulBlockEntity implements WasmInventor
 
   @Syncable
   public String function;
+
+  @Syncable
+  public int power;
+
+  public void setPower(int power) {
+    this.power = power;
+  }
+
+  public int getPower() {
+    return this.power;
+  }
 
   public void setFunction(String function) {
     this.function = function;
@@ -125,27 +140,52 @@ public class WasmBlockEntity extends StatefulBlockEntity implements WasmInventor
         Object fnResult = runtime.executeModuleFunction(String.class, modules.toArray(new String[modules.size()]),
             function, new String[] { data });
 
-        // everything is ok emit redstone power
-        BlockState state = world.getBlockState(pos);
-        state = state.with(DatabaseBlock.POWERED, true);
-        world.setBlockState(pos, state, Block.NOTIFY_ALL);
-
-        // schedule a block tick to update the block so it can disable
-        world.scheduleBlockTick(pos, ModBlocks.WASM_BLOCK, 40, TickPriority.NORMAL);
-
-        // create a data item
-        ItemStack card = new ItemStack(ModItems.DATA_ITEM);
-
         // create a dispense location
         Direction direction = world.getBlockState(pos).get(FACING);
 
+        // convert the result string to a WasmData type
+        LOGGER.info("Wasm function result: {}", fnResult.toString());
+        WasmData wasmData = WasmData.fromJson(fnResult.toString());
+
+        ItemStack card;
+        if (wasmData.getErrorCode() != 0) {
+          card = new ItemStack(ModItems.ERROR_ITEM);
+          this.power = 1;
+        } else {
+          card = new ItemStack(ModItems.DATA_ITEM);
+          this.power = 15;
+        }
+
+        // create a data item
         NbtCompound nbt = card.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
-        nbt.putString("request_id", requestID);
-        nbt.putString("data", fnResult.toString());
+        nbt.putString("request_id", wasmData.getRequestID());
+        nbt.putString("request_path", wasmData.getRequest_path());
+        nbt.putString("request_method", wasmData.getRequest_method());
+        nbt.putInt("error_code", wasmData.getErrorCode());
+
+        NbtCompound query = new NbtCompound();
+        wasmData.getRequest_query().forEach((key, value) -> {
+          if (value != null && !value.isEmpty()) {
+            query.putString(key, value);
+          }
+        });
+
+        nbt.put("request_query", query);
+        nbt.putString("data", wasmData.getData());
+
         card.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
 
         // dispense the block
         dispense(world, pos, card, 1, direction);
+
+        // everything is ok emit redstone power
+        BlockState state = world.getBlockState(pos);
+        state = state.with(POWERED, true);
+        state = state.with(POWER, this.power);
+        world.setBlockState(pos, state, Block.NOTIFY_ALL);
+
+        // schedule a block tick to update the block so it can disable
+        world.scheduleBlockTick(pos, ModBlocks.WASM_BLOCK, 40, TickPriority.NORMAL);
       } catch (Exception e) {
         LOGGER.error("Error executing Wasm function: {}", e.getMessage());
         e.printStackTrace();
@@ -156,7 +196,7 @@ public class WasmBlockEntity extends StatefulBlockEntity implements WasmInventor
   }
 
   private void dispense(World world, BlockPos pos, ItemStack stack, int offset, Direction side) {
-    // get the opposite side so that it dispenses from the read of the block
+    // get the opposite side so that it dispenses from the back of the block
     side = side.getOpposite();
 
     double x = pos.getX() + 0.7D * (double) side.getOffsetX();

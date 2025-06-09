@@ -13,7 +13,7 @@ public class MicroservicesMod implements ModInitializer {
   @Override
   public void onInitialize() {
     // This code runs as soon as Minecraft is in a mod-load-ready state.
-    System.out.println("Microservices v1.3.0 loading...");
+    System.out.println("Microservices v1.3.1 loading...");
 
     System.out.println("Registering Microservices blocks");
     ModBlocks.initialize();

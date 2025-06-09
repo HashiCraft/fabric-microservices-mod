@@ -1,6 +1,5 @@
 plugins {
   id 'java'
-  //id 'com.github.johnrengelman.shadow' version '8.1.1'
 	id 'fabric-loom' version '1.10-SNAPSHOT'
 	id 'maven-publish'
 }
@@ -34,15 +33,16 @@ dependencies {
 	modImplementation include("com.github.hashicraft:fabric-stateful-mod:${stateful_version}")
 
   // include the libraries  
-  include implementation("org.postgresql:postgresql:42.6.0");
-  include implementation("com.jayway.jsonpath:json-path:2.9.0");
-  include implementation("io.github.kawamuray.wasmtime:wasmtime-java:${wasmtime_version}")
+  implementation("org.postgresql:postgresql:42.6.0");
+  implementation("com.jayway.jsonpath:json-path:2.9.0");
+  implementation("io.github.kawamuray.wasmtime:wasmtime-java:${wasmtime_version}")
 
   // undertow webserver and jboss dependencies
-  include implementation("io.undertow:undertow-core:2.3.18.Final")
-  include implementation("org.jboss.threads:jboss-threads:3.5.0.Final")
-  include implementation("org.jboss.logging:jboss-logging:3.4.3.Final")
-  include implementation("org.jboss.xnio:xnio-api:3.8.16.Final")  
+  implementation("io.undertow:undertow-core:2.3.18.Final")
+  //include implementation("org.jboss.xnio:xnio-api:3.8.16.Final")  
+  //include runtimeOnly("org.jboss.xnio:xnio-nio:3.8.16.Final")  
+  //include implementation("org.jboss.threads:jboss-threads:3.5.0.Final")
+  //include implementation("org.jboss.logging:jboss-logging:3.4.3.Final")
 
 
 	testRuntimeOnly('org.junit.platform:junit-platform-launcher')

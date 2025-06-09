@@ -1,7 +1,7 @@
 .PHONY: build
 
 build:
-	tinygo build -o ../go_string.wasm -wasm-abi=generic -target=wasi -gc=leaking -scheduler=none .
+	tinygo build -o ../go_string.wasm -target=wasi -gc=leaking -scheduler=none .
 	wasm2wat ../go_string.wasm > ../go_string.wat
 
 # By default TinyGo adds a start function to the WASM binary, wasmtime will treat this as a Command

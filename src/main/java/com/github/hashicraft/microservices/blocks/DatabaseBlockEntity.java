@@ -146,13 +146,16 @@ public class DatabaseBlockEntity extends StatefulBlockEntity implements Database
   }
 
   @Override
-  public void executeDBQuery(String requestID, String data) {
+  public void executeDBQuery(String requestID, String data, NbtCompound nbt) {
     LOGGER.info("Executing SQL statement {} for request {} with data {}", this.getSQLStatement(), requestID, data);
 
     service.submit(() -> {
 
       try {
-        String result = executeSQLStatement();
+        String result = executeSQLStatement(nbt);
+        if (result.length() > 60000) {
+          throw new SQLException("Result too large to fit in an item stack");
+        }
 
         // create a data item
         ItemStack dataItem = createItemStack(requestID, result, ModItems.DATA_ITEM);
@@ -191,14 +194,14 @@ public class DatabaseBlockEntity extends StatefulBlockEntity implements Database
     return card;
   }
 
-  private String executeSQLStatement() throws SQLException {
+  private String executeSQLStatement(NbtCompound nbt) throws SQLException {
     // get the database details from the block entity gui
     // we will substitute any environment variables that may be embedded in here
-    String address = Interpolate.getValue(this.getDbAddress());
-    String username = Interpolate.getValue(this.getUsername());
-    String password = Interpolate.getValue(this.getPassword());
-    String database = Interpolate.getValue(this.getDatabase());
-    String sql = Interpolate.getValue(this.getSQLStatement());
+    String address = Interpolate.getValue(this.getDbAddress(), nbt);
+    String username = Interpolate.getValue(this.getUsername(), nbt);
+    String password = Interpolate.getValue(this.getPassword(), nbt);
+    String database = Interpolate.getValue(this.getDatabase(), nbt);
+    String sql = Interpolate.getValue(this.getSQLStatement(), nbt);
 
     // execute the SQL statement
     Connection conn = DriverManager.getConnection(

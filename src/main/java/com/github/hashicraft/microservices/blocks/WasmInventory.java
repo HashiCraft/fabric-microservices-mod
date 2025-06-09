@@ -1,5 +1,7 @@
 package com.github.hashicraft.microservices.blocks;
 
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -126,8 +128,28 @@ public interface WasmInventory extends Inventory {
     NbtCompound data = stack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
     String strData = data.getString("data", "");
     String requestID = data.getString("request_id", "");
+    String path = data.getString("request_path", "");
+    String method = data.getString("request_method", "");
+    NbtCompound query = data.getCompoundOrEmpty("request_query");
 
-    executeWasmFunction(requestID, strData);
+    // convert the request into a json payload
+    WasmData wasmData = new WasmData();
+    wasmData.setRequestID(requestID);
+    wasmData.setData(strData);
+    wasmData.setRequest_path(path);
+    wasmData.setRequest_method(method);
+
+    // convert the query to a map
+    Map<String, String> queryMap = new java.util.HashMap<String, String>();
+    query.forEach((key, value) -> {
+      queryMap.put(key, value.asString().orElse(""));
+    });
+
+    wasmData.setRequest_query(queryMap);
+
+    String jsonData = wasmData.toJson();
+
+    executeWasmFunction(requestID, jsonData);
   }
 
   /**

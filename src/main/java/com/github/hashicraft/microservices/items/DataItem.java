@@ -31,17 +31,19 @@ public class DataItem extends Item {
       Consumer<Text> textConsumer, TooltipType type) {
   }
 
-  @Override
-  public Text getName(ItemStack stack) {
-    NbtCompound item = stack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT).copyNbt();
-    String name = item.getString("request_id", "");
+  // @Override
+  // public Text getName(ItemStack stack) {
+  // NbtCompound item = stack.getOrDefault(DataComponentTypes.CUSTOM_DATA,
+  // NbtComponent.DEFAULT).copyNbt();
+  // String name = item.getString("request_id", "");
 
-    MutableText text = Text.translatable(this.getTranslationKey());
+  // MutableText text = Text.translatable(this.getTranslationKey());
 
-    if (name != "") {
-      text.append(Text.literal(" (" + name + ")").setStyle(Style.EMPTY.withColor(Formatting.GRAY)));
-    }
+  // if (name != "") {
+  // text.append(Text.literal(" (" + name +
+  // ")").setStyle(Style.EMPTY.withColor(Formatting.GRAY)));
+  // }
 
-    return text;
-  }
+  // return text;
+  // }
 }

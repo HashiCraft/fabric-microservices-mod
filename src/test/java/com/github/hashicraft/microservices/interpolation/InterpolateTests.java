@@ -126,14 +126,15 @@ public class InterpolateTests {
   @Test
   void requestQueryIsInterpolated() throws InterpolationNotFoundError {
     NbtCompound query = new NbtCompound();
-    query.putString("testing", "hello, this is some data");
+    query.putString("testing", "123");
 
     NbtCompound data = new NbtCompound();
     data.put("request_query", query);
 
-    String result = Interpolate.getValue("request_query: ${{request_query(\"testing\")}}", data);
+    String result = Interpolate.getValue(
+        "Executing SQL statement select * from flights where origin=\"${{request_query(\"testing\")}}\"", data);
 
     // Assuming the request_path function returns "Nic" for the given URL
-    assertEquals("request_query: hello, this is some data", result);
+    assertEquals("Executing SQL statement select * from flights where origin=\"123\"", result);
   }
 }

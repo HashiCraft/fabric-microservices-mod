@@ -267,9 +267,9 @@ public class WebserverBlock extends StatefulBlock {
         .build();
 
     // start the server async so we don't block the main thread
-    service.submit(() -> {
-      server.start();
-    });
+    // service.submit(() -> {
+    server.start();
+    // });
 
     // set the server
     ctx.setServer(server);
